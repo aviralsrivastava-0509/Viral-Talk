@@ -43,9 +43,9 @@ export const posts = pgTable("posts", {
   id: serial("id").primaryKey(),
   groupId: integer("group_id").notNull(),
   userId: varchar("user_id").notNull(),
-  type: text("type").notNull(), // 'announcement', 'story', 'video', 'chat'
+  type: text("type").notNull(), // 'announcement', 'story', 'video', 'image', 'chat'
   content: text("content"), // Text content
-  mediaUrl: text("media_url"), // URL for images/videos
+  mediaUrl: text("media_url"), // URL for images/videos/pictures
   expiresAt: timestamp("expires_at"), // For stories
   createdAt: timestamp("created_at").defaultNow(),
 });
