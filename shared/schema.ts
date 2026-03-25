@@ -122,6 +122,22 @@ export const pollVotesRelations = relations(pollVotes, ({ one }) => ({
   }),
 }));
 
+// === MESSAGES (Group Chat) ===
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  groupId: integer("group_id").notNull(),
+  userId: varchar("user_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  group: one(groups, {
+    fields: [messages.groupId],
+    references: [groups.id],
+  }),
+}));
+
 // === SCHEMAS ===
 export const insertGroupSchema = createInsertSchema(groups).omit({ id: true, createdAt: true, createdBy: true });
 export const insertPostSchema = createInsertSchema(posts).omit({ id: true, createdAt: true, userId: true, expiresAt: true });
@@ -129,6 +145,7 @@ export const insertEventSchema = createInsertSchema(events).omit({ id: true, cre
 export const insertPollSchema = createInsertSchema(polls).omit({ id: true, createdAt: true, createdBy: true }).extend({
   options: z.array(z.string()),
 });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true, userId: true });
 export const joinGroupSchema = z.object({ code: z.string() });
 
 // === TYPES ===
@@ -139,3 +156,4 @@ export type Event = typeof events.$inferSelect;
 export type Poll = typeof polls.$inferSelect;
 export type PollOption = typeof pollOptions.$inferSelect;
 export type PollVote = typeof pollVotes.$inferSelect;
+export type Message = typeof messages.$inferSelect;

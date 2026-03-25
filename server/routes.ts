@@ -27,9 +27,7 @@ export async function registerRoutes(
       res.status(201).json(group);
     } catch (err) {
        if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-        });
+        return res.status(400).json({ message: err.errors[0].message });
       }
       throw err;
     }
@@ -46,9 +44,7 @@ export async function registerRoutes(
       res.json(group);
     } catch (err) {
       if (err instanceof z.ZodError) {
-        return res.status(400).json({
-          message: err.errors[0].message,
-        });
+        return res.status(400).json({ message: err.errors[0].message });
       }
       throw err;
     }
@@ -58,6 +54,33 @@ export async function registerRoutes(
     const group = await storage.getGroup(Number(req.params.id));
     if (!group) return res.status(404).json({ message: "Group not found" });
     res.json(group);
+  });
+
+  // === MEMBERS ===
+  app.get("/api/groups/:groupId/members", isAuthenticated, async (req: any, res) => {
+    const groupId = Number(req.params.groupId);
+    const members = await storage.getGroupMembers(groupId);
+    res.json(members);
+  });
+
+  app.delete("/api/groups/:groupId/members/:userId", isAuthenticated, async (req: any, res) => {
+    const groupId = Number(req.params.groupId);
+    const requesterId = req.user.claims.sub;
+    const targetUserId = req.params.userId;
+
+    // Only admins can remove members
+    const role = await storage.getMemberRole(requesterId, groupId);
+    if (role !== "admin") {
+      return res.status(403).json({ message: "Only admins can remove members" });
+    }
+
+    // Prevent self-removal of admin
+    if (targetUserId === requesterId) {
+      return res.status(400).json({ message: "You cannot remove yourself" });
+    }
+
+    await storage.removeMember(targetUserId, groupId);
+    res.json({ success: true });
   });
 
   // === POSTS ===
@@ -99,6 +122,21 @@ export async function registerRoutes(
   app.post(api.polls.vote.path, isAuthenticated, async (req: any, res) => {
     await storage.votePoll(req.user.claims.sub, req.body.optionId);
     res.json({ success: true });
+  });
+
+  // === MESSAGES (Group Chat) ===
+  app.get("/api/groups/:groupId/messages", isAuthenticated, async (req, res) => {
+    const messages = await storage.getGroupMessages(Number(req.params.groupId));
+    res.json(messages);
+  });
+
+  app.post("/api/groups/:groupId/messages", isAuthenticated, async (req: any, res) => {
+    const { content } = req.body;
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return res.status(400).json({ message: "Content is required" });
+    }
+    const message = await storage.createMessage(req.user.claims.sub, Number(req.params.groupId), content.trim());
+    res.status(201).json(message);
   });
 
   return httpServer;

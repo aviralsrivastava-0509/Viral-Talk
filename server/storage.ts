@@ -1,6 +1,6 @@
 import { db } from "./db";
-import { groups, members, posts, events, polls, pollOptions, pollVotes, users } from "@shared/schema";
-import { eq, and, desc, gt } from "drizzle-orm";
+import { groups, members, posts, events, polls, pollOptions, pollVotes, messages, users } from "@shared/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface IStorage {
@@ -11,6 +11,11 @@ export interface IStorage {
   createGroup(userId: string, group: any): Promise<any>;
   joinGroup(userId: string, groupId: number, role?: string): Promise<void>;
   isMember(userId: string, groupId: number): Promise<boolean>;
+
+  // Members
+  getGroupMembers(groupId: number): Promise<any[]>;
+  getMemberRole(userId: string, groupId: number): Promise<string | null>;
+  removeMember(userId: string, groupId: number): Promise<void>;
 
   // Posts
   getGroupPosts(groupId: number): Promise<any[]>;
@@ -24,6 +29,10 @@ export interface IStorage {
   getGroupPolls(groupId: number): Promise<any[]>;
   createPoll(userId: string, groupId: number, poll: any): Promise<any>;
   votePoll(userId: string, pollOptionId: number): Promise<void>;
+
+  // Messages
+  getGroupMessages(groupId: number): Promise<any[]>;
+  createMessage(userId: string, groupId: number, content: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -31,8 +40,7 @@ export class DatabaseStorage implements IStorage {
     const userMemberships = await db.select().from(members).where(eq(members.userId, userId));
     const groupIds = userMemberships.map(m => m.groupId);
     if (groupIds.length === 0) return [];
-    
-    // In a real app we'd use 'inArray', but simple iteration is fine for MVP
+
     const results = [];
     for (const gid of groupIds) {
       const [g] = await db.select().from(groups).where(eq(groups.id, gid));
@@ -58,7 +66,7 @@ export class DatabaseStorage implements IStorage {
       code,
       createdBy: userId,
     }).returning();
-    
+
     await this.joinGroup(userId, group.id, "admin");
     return group;
   }
@@ -67,16 +75,31 @@ export class DatabaseStorage implements IStorage {
     const [existing] = await db.select().from(members).where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
     if (existing) return;
 
-    await db.insert(members).values({
-      userId,
-      groupId,
-      role,
-    });
+    await db.insert(members).values({ userId, groupId, role });
   }
 
   async isMember(userId: string, groupId: number): Promise<boolean> {
     const [member] = await db.select().from(members).where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
     return !!member;
+  }
+
+  async getGroupMembers(groupId: number): Promise<any[]> {
+    const groupMembers = await db
+      .select({ member: members, user: users })
+      .from(members)
+      .leftJoin(users, eq(members.userId, users.id))
+      .where(eq(members.groupId, groupId));
+
+    return groupMembers.map(({ member, user }) => ({ ...member, user }));
+  }
+
+  async getMemberRole(userId: string, groupId: number): Promise<string | null> {
+    const [member] = await db.select().from(members).where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
+    return member?.role ?? null;
+  }
+
+  async removeMember(userId: string, groupId: number): Promise<void> {
+    await db.delete(members).where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
   }
 
   async getGroupPosts(groupId: number): Promise<any[]> {
@@ -88,7 +111,7 @@ export class DatabaseStorage implements IStorage {
     .leftJoin(users, eq(posts.userId, users.id))
     .where(eq(posts.groupId, groupId))
     .orderBy(desc(posts.createdAt));
-    
+
     return groupPosts.map(({ post, user }) => ({ ...post, user }));
   }
 
@@ -117,8 +140,7 @@ export class DatabaseStorage implements IStorage {
 
   async getGroupPolls(groupId: number): Promise<any[]> {
     const groupPolls = await db.select().from(polls).where(eq(polls.groupId, groupId)).orderBy(desc(polls.createdAt));
-    
-    // Fetch options and votes for each poll (simplified N+1 for MVP)
+
     const results = [];
     for (const poll of groupPolls) {
       const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id));
@@ -140,24 +162,53 @@ export class DatabaseStorage implements IStorage {
     }).returning();
 
     for (const optText of pollData.options) {
-      await db.insert(pollOptions).values({
-        pollId: poll.id,
-        text: optText,
-      });
+      await db.insert(pollOptions).values({ pollId: poll.id, text: optText });
     }
 
     return poll;
   }
 
   async votePoll(userId: string, pollOptionId: number): Promise<void> {
-    // Basic vote logic: check if user already voted in this poll? 
-    // For MVP, just allow voting on an option.
-    // Ideally we should find the pollId from the option, then check if user voted on that poll.
-    
-    await db.insert(pollVotes).values({
-      pollOptionId,
+    // Check if user already voted on any option of this poll
+    const [opt] = await db.select().from(pollOptions).where(eq(pollOptions.id, pollOptionId));
+    if (!opt) return;
+
+    const existingOptionsForPoll = await db.select().from(pollOptions).where(eq(pollOptions.pollId, opt.pollId));
+    const existingOptionIds = existingOptionsForPoll.map(o => o.id);
+
+    if (existingOptionIds.length > 0) {
+      const existingVote = await db.select().from(pollVotes).where(
+        and(eq(pollVotes.userId, userId), inArray(pollVotes.pollOptionId, existingOptionIds))
+      );
+      if (existingVote.length > 0) {
+        // Update: delete old vote and insert new
+        await db.delete(pollVotes).where(
+          and(eq(pollVotes.userId, userId), inArray(pollVotes.pollOptionId, existingOptionIds))
+        );
+      }
+    }
+
+    await db.insert(pollVotes).values({ pollOptionId, userId });
+  }
+
+  async getGroupMessages(groupId: number): Promise<any[]> {
+    const groupMessages = await db
+      .select({ message: messages, user: users })
+      .from(messages)
+      .leftJoin(users, eq(messages.userId, users.id))
+      .where(eq(messages.groupId, groupId))
+      .orderBy(messages.createdAt);
+
+    return groupMessages.map(({ message, user }) => ({ ...message, user }));
+  }
+
+  async createMessage(userId: string, groupId: number, content: string): Promise<any> {
+    const [message] = await db.insert(messages).values({
       userId,
-    });
+      groupId,
+      content,
+    }).returning();
+    return message;
   }
 }
 

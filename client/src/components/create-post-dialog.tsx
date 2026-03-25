@@ -16,23 +16,30 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/select";
-import { PenSquare } from "lucide-react";
+import { PenSquare, Megaphone, BookImage, Video, Sparkles } from "lucide-react";
 
 interface CreatePostDialogProps {
   groupId: number;
 }
 
+const postTypes = [
+  { value: "announcement", label: "Announcement", icon: Megaphone, color: "text-blue-600" },
+  { value: "image", label: "Photo", icon: BookImage, color: "text-green-600" },
+  { value: "video", label: "Video", icon: Video, color: "text-red-600" },
+  { value: "story", label: "Story (24h)", icon: Sparkles, color: "text-orange-600" },
+];
+
 export function CreatePostDialog({ groupId }: CreatePostDialogProps) {
   const [open, setOpen] = useState(false);
   const { mutate, isPending } = useCreatePost(groupId);
-  
+
   const form = useForm<z.infer<typeof insertPostSchema>>({
     resolver: zodResolver(insertPostSchema),
     defaultValues: {
@@ -53,11 +60,13 @@ export function CreatePostDialog({ groupId }: CreatePostDialogProps) {
   };
 
   const type = form.watch("type");
+  const needsMedia = type === "video" || type === "image" || type === "story";
+  const selectedType = postTypes.find(t => t.value === type);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="w-full sm:w-auto gap-2">
+        <Button className="gap-2" data-testid="button-create-post">
           <PenSquare className="w-4 h-4" />
           Create Post
         </Button>
@@ -69,42 +78,58 @@ export function CreatePostDialog({ groupId }: CreatePostDialogProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>Post Type</Label>
-            <Select 
-              onValueChange={(val) => form.setValue("type", val as any)} 
+            <Select
+              onValueChange={(val) => form.setValue("type", val as any)}
               defaultValue={type}
             >
-              <SelectTrigger>
+              <SelectTrigger data-testid="select-post-type">
                 <SelectValue placeholder="Select type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="announcement">Announcement / Chat</SelectItem>
-                <SelectItem value="story">Story (Ephemeral)</SelectItem>
-                <SelectItem value="video">Video</SelectItem>
+                {postTypes.map(t => {
+                  const Icon = t.icon;
+                  return (
+                    <SelectItem key={t.value} value={t.value}>
+                      <div className="flex items-center gap-2">
+                        <Icon className={`w-4 h-4 ${t.color}`} />
+                        {t.label}
+                      </div>
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label>Content</Label>
-            <Textarea 
-              placeholder="What's on your mind?" 
+            <Label>
+              {type === "announcement" ? "Message" : "Caption (Optional)"}
+            </Label>
+            <Textarea
+              placeholder={type === "announcement" ? "Share something with the group..." : "Add a caption..."}
               className="min-h-[100px]"
-              {...form.register("content")} 
+              data-testid="input-post-content"
+              {...form.register("content")}
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Image/Video URL (Optional)</Label>
-            <Input 
-              placeholder="https://..." 
-              {...form.register("mediaUrl")} 
-            />
-            <p className="text-xs text-muted-foreground">Paste a link to an image or video.</p>
-          </div>
+          {needsMedia && (
+            <div className="space-y-2">
+              <Label>{type === "video" ? "Video URL" : "Image URL"}</Label>
+              <Input
+                placeholder="https://..."
+                data-testid="input-post-media-url"
+                {...form.register("mediaUrl")}
+              />
+              <p className="text-xs text-muted-foreground">
+                Paste a direct link to your {type === "video" ? "video" : "image"}.
+              </p>
+            </div>
+          )}
 
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Posting..." : "Post"}
+            <Button type="submit" disabled={isPending} data-testid="button-submit-post">
+              {isPending ? "Posting..." : `Post ${selectedType?.label || ""}`}
             </Button>
           </DialogFooter>
         </form>
