@@ -20,10 +20,10 @@ function Router() {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-primary rounded-xl animate-bounce flex items-center justify-center text-white font-bold text-xl">
-            F
+          <div className="w-12 h-12 bg-gradient-to-tr from-primary to-purple-400 rounded-xl animate-bounce flex items-center justify-center text-white font-bold text-xl">
+            V
           </div>
-          <p className="text-muted-foreground animate-pulse">Loading FriendGroup...</p>
+          <p className="text-muted-foreground animate-pulse">Loading ViralTalk...</p>
         </div>
       </div>
     );

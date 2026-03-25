@@ -10,10 +10,10 @@ export default function Landing() {
     <div className="min-h-screen bg-background flex flex-col">
       <nav className="p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
         <div className="text-2xl font-bold font-display flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-            F
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white shadow-lg shadow-primary/20">
+            V
           </div>
-          FriendGroup
+          ViralTalk
         </div>
         <Button onClick={handleLogin}>Log In</Button>
       </nav>
@@ -27,7 +27,7 @@ export default function Landing() {
             </span>
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Plan events, share stories, vote on polls, and keep the group chat alive. 
+            Plan events, share stories, vote on polls, and keep the group chat alive.
             The only app your friend group needs.
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function Landing() {
             <p className="text-muted-foreground">Decide where to eat or what movie to watch democratically. End the debates.</p>
           </div>
         </div>
-        
+
         {/* Abstract Background Decoration */}
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
           <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[100px]" />
@@ -72,7 +72,7 @@ export default function Landing() {
       </main>
 
       <footer className="py-8 text-center text-sm text-muted-foreground border-t">
-        &copy; {new Date().getFullYear()} FriendGroup. Built for fun.
+        &copy; {new Date().getFullYear()} ViralTalk. Built for fun.
       </footer>
     </div>
   );

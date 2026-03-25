@@ -24,10 +24,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
           <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
-              F
+              V
             </div>
             <span className="hidden sm:inline-block text-xl font-bold font-display tracking-tight text-foreground">
-              FriendGroup
+              ViralTalk
             </span>
           </Link>
 
