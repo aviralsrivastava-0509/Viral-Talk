@@ -13,10 +13,16 @@ export function useMessages(groupId: number) {
   });
 }
 
+export interface SendMessagePayload {
+  content?: string;
+  mediaUrl?: string;
+  mediaType?: "image" | "video";
+}
+
 export function useSendMessage(groupId: number) {
   return useMutation({
-    mutationFn: (content: string) =>
-      apiRequest("POST", `/api/groups/${groupId}/messages`, { content }),
+    mutationFn: (payload: SendMessagePayload) =>
+      apiRequest("POST", `/api/groups/${groupId}/messages`, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/groups", groupId, "messages"] });
     },

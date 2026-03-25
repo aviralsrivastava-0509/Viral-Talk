@@ -32,7 +32,7 @@ export interface IStorage {
 
   // Messages
   getGroupMessages(groupId: number): Promise<any[]>;
-  createMessage(userId: string, groupId: number, content: string): Promise<any>;
+  createMessage(userId: string, groupId: number, data: { content?: string; mediaUrl?: string; mediaType?: string }): Promise<any>;
   editMessage(messageId: number, userId: string, content: string): Promise<any>;
   deleteMessage(messageId: number, userId: string): Promise<void>;
 
@@ -207,11 +207,13 @@ export class DatabaseStorage implements IStorage {
     return groupMessages.map(({ message, user }) => ({ ...message, user }));
   }
 
-  async createMessage(userId: string, groupId: number, content: string): Promise<any> {
+  async createMessage(userId: string, groupId: number, data: { content?: string; mediaUrl?: string; mediaType?: string }): Promise<any> {
     const [message] = await db.insert(messages).values({
       userId,
       groupId,
-      content,
+      content: data.content || null,
+      mediaUrl: data.mediaUrl || null,
+      mediaType: data.mediaType || null,
     }).returning();
     return message;
   }

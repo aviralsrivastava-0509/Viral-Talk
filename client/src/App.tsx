@@ -5,35 +5,13 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/hooks/use-auth";
+import { ThemeContext, useThemeState } from "@/hooks/use-theme";
 import { Loader2 } from "lucide-react";
 
 import Landing from "@/pages/landing";
 import Dashboard from "@/pages/dashboard";
 import GroupDetails from "@/pages/group-details";
 import NotFound from "@/pages/not-found";
-
-function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any> }) {
-  const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
-
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    // Redirect logic handled in landing page normally, or explicit here
-    // But for better UX, we just show Landing if not logged in on root
-    // For protected routes, maybe redirect or show unauthorized
-    // For now, let's just return Landing if not user
-    return <Landing />;
-  }
-
-  return <Component {...rest} />;
-}
 
 function Router() {
   const { user, isLoading } = useAuth();
@@ -54,15 +32,12 @@ function Router() {
   return (
     <Layout>
       <Switch>
-        {/* If user is logged in, root goes to dashboard. If not, Landing */}
         <Route path="/">
           {user ? <Dashboard /> : <Landing />}
         </Route>
-        
         <Route path="/groups/:id">
           {user ? <GroupDetails /> : <Landing />}
         </Route>
-
         <Route component={NotFound} />
       </Switch>
     </Layout>
@@ -70,13 +45,17 @@ function Router() {
 }
 
 function App() {
+  const themeValue = useThemeState();
+
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
-    </QueryClientProvider>
+    <ThemeContext.Provider value={themeValue}>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </QueryClientProvider>
+    </ThemeContext.Provider>
   );
 }
 

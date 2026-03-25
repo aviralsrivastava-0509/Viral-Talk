@@ -131,11 +131,17 @@ export async function registerRoutes(
   });
 
   app.post("/api/groups/:groupId/messages", isAuthenticated, async (req: any, res) => {
-    const { content } = req.body;
-    if (!content || typeof content !== "string" || content.trim().length === 0) {
-      return res.status(400).json({ message: "Content is required" });
+    const { content, mediaUrl, mediaType } = req.body;
+    const hasContent = content && typeof content === "string" && content.trim().length > 0;
+    const hasMedia = mediaUrl && typeof mediaUrl === "string" && mediaUrl.trim().length > 0;
+    if (!hasContent && !hasMedia) {
+      return res.status(400).json({ message: "A message or media is required" });
     }
-    const message = await storage.createMessage(req.user.claims.sub, Number(req.params.groupId), content.trim());
+    const message = await storage.createMessage(req.user.claims.sub, Number(req.params.groupId), {
+      content: hasContent ? content.trim() : undefined,
+      mediaUrl: hasMedia ? mediaUrl.trim() : undefined,
+      mediaType: hasMedia ? (mediaType || "image") : undefined,
+    });
     res.status(201).json(message);
   });
 

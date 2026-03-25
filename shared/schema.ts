@@ -128,7 +128,9 @@ export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   groupId: integer("group_id").notNull(),
   userId: varchar("user_id").notNull(),
-  content: text("content").notNull(),
+  content: text("content"), // Optional text; at least one of content/mediaUrl required
+  mediaUrl: text("media_url"), // URL for photo/video attachments
+  mediaType: text("media_type"), // 'image' | 'video'
   editedAt: timestamp("edited_at"), // Set when message is edited
   createdAt: timestamp("created_at").defaultNow(),
 });

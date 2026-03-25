@@ -5,7 +5,7 @@ import { useGroup } from "@/hooks/use-groups";
 import { usePosts } from "@/hooks/use-posts";
 import { useEvents } from "@/hooks/use-events";
 import { usePolls } from "@/hooks/use-polls";
-import { useMessages, useSendMessage, useEditMessage, useDeleteMessage } from "@/hooks/use-messages";
+import { useMessages, useSendMessage, useEditMessage, useDeleteMessage, type SendMessagePayload } from "@/hooks/use-messages";
 import { useMembers, useRemoveMember } from "@/hooks/use-members";
 import { useUpdateGroupPhoto } from "@/hooks/use-groups";
 import { useAuth } from "@/hooks/use-auth";
@@ -52,7 +52,9 @@ import {
   Pencil,
   Trash2,
   Camera,
-  ImageIcon,
+  Video,
+  X,
+  ImagePlus,
 } from "lucide-react";
 
 export default function GroupDetails() {
@@ -322,6 +324,8 @@ function PostsList({ groupId }: { groupId: number }) {
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
+type MediaMode = null | "image" | "video";
+
 function ChatSection({ groupId }: { groupId: number }) {
   const { data: messages, isLoading } = useMessages(groupId);
   const { mutate: sendMessage, isPending: sending } = useSendMessage(groupId);
@@ -329,7 +333,11 @@ function ChatSection({ groupId }: { groupId: number }) {
   const { mutate: deleteMessage } = useDeleteMessage(groupId);
   const { user } = useAuth();
   const { toast } = useToast();
+
   const [input, setInput] = useState("");
+  const [mediaMode, setMediaMode] = useState<MediaMode>(null);
+  const [mediaUrl, setMediaUrl] = useState("");
+
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -338,11 +346,27 @@ function ChatSection({ groupId }: { groupId: number }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const toggleMediaMode = (mode: MediaMode) => {
+    setMediaMode(prev => prev === mode ? null : mode);
+    setMediaUrl("");
+  };
+
+  const canSend = (input.trim() || (mediaMode && mediaUrl.trim()));
+
   const handleSend = () => {
-    const content = input.trim();
-    if (!content) return;
+    if (!canSend) return;
+    const payload: SendMessagePayload = {};
+    if (input.trim()) payload.content = input.trim();
+    if (mediaMode && mediaUrl.trim()) {
+      payload.mediaUrl = mediaUrl.trim();
+      payload.mediaType = mediaMode;
+    }
     setInput("");
-    sendMessage(content);
+    setMediaUrl("");
+    setMediaMode(null);
+    sendMessage(payload, {
+      onError: () => toast({ variant: "destructive", description: "Failed to send message." }),
+    });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -354,7 +378,7 @@ function ChatSection({ groupId }: { groupId: number }) {
 
   const startEditing = (msg: any) => {
     setEditingId(msg.id);
-    setEditingContent(msg.content);
+    setEditingContent(msg.content || "");
   };
 
   const cancelEditing = () => {
@@ -396,6 +420,8 @@ function ChatSection({ groupId }: { groupId: number }) {
           messages.map(msg => {
             const isMe = msg.userId === user?.id;
             const isBeingEdited = editingId === msg.id;
+            const hasMedia = !!(msg as any).mediaUrl;
+            const mediaType = (msg as any).mediaType as "image" | "video" | undefined;
 
             return (
               <div
@@ -410,7 +436,7 @@ function ChatSection({ groupId }: { groupId: number }) {
                   </Avatar>
                 )}
 
-                <div className={`max-w-[70%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
+                <div className={`max-w-[72%] flex flex-col gap-0.5 ${isMe ? "items-end" : "items-start"}`}>
                   {!isMe && (
                     <span className="text-[10px] text-muted-foreground px-1 font-medium">
                       {msg.user?.firstName}
@@ -418,7 +444,7 @@ function ChatSection({ groupId }: { groupId: number }) {
                   )}
 
                   {isBeingEdited ? (
-                    <div className="flex items-center gap-2 w-full">
+                    <div className="flex items-center gap-2 min-w-[200px]">
                       <Input
                         value={editingContent}
                         onChange={e => setEditingContent(e.target.value)}
@@ -430,26 +456,27 @@ function ChatSection({ groupId }: { groupId: number }) {
                         autoFocus
                         data-testid={`input-edit-message-${msg.id}`}
                       />
-                      <Button size="sm" onClick={() => submitEdit(msg.id)} disabled={editing} className="h-9 px-3">
-                        Save
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={cancelEditing} className="h-9 px-3">
-                        Cancel
-                      </Button>
+                      <Button size="sm" onClick={() => submitEdit(msg.id)} disabled={editing} className="h-9 px-3">Save</Button>
+                      <Button size="sm" variant="ghost" onClick={cancelEditing} className="h-9 px-2"><X className="w-4 h-4" /></Button>
                     </div>
                   ) : (
                     <div className="flex items-end gap-1.5">
                       {isMe && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <button className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-muted text-muted-foreground" data-testid={`button-message-options-${msg.id}`}>
+                            <button
+                              className="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 rounded-full hover:bg-muted text-muted-foreground"
+                              data-testid={`button-message-options-${msg.id}`}
+                            >
                               <MoreVertical className="w-3.5 h-3.5" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-36">
-                            <DropdownMenuItem onClick={() => startEditing(msg)} data-testid={`button-edit-message-${msg.id}`}>
-                              <Pencil className="w-4 h-4 mr-2" /> Edit
-                            </DropdownMenuItem>
+                            {msg.content && (
+                              <DropdownMenuItem onClick={() => startEditing(msg)} data-testid={`button-edit-message-${msg.id}`}>
+                                <Pencil className="w-4 h-4 mr-2" /> Edit
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="text-destructive focus:text-destructive"
                               onClick={() => handleDelete(msg.id)}
@@ -460,16 +487,40 @@ function ChatSection({ groupId }: { groupId: number }) {
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
-                      <div
-                        className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-                          isMe
-                            ? "bg-primary text-primary-foreground rounded-br-sm"
-                            : "bg-muted rounded-bl-sm"
-                        }`}
-                      >
-                        {msg.content}
-                        {msg.editedAt && (
-                          <span className={`text-[10px] ml-2 opacity-60`}>(edited)</span>
+
+                      <div className={`rounded-2xl overflow-hidden text-sm max-w-full ${
+                        isMe
+                          ? "bg-primary text-primary-foreground rounded-br-sm"
+                          : "bg-muted rounded-bl-sm"
+                      }`}>
+                        {/* Media preview */}
+                        {hasMedia && (
+                          <div className="overflow-hidden rounded-xl">
+                            {mediaType === "video" ? (
+                              <video
+                                controls
+                                src={(msg as any).mediaUrl}
+                                className="max-w-[280px] max-h-[300px] object-cover block"
+                              />
+                            ) : (
+                              <img
+                                src={(msg as any).mediaUrl}
+                                alt="shared media"
+                                className="max-w-[280px] max-h-[300px] object-cover block cursor-pointer"
+                                loading="lazy"
+                                onClick={() => window.open((msg as any).mediaUrl, "_blank")}
+                              />
+                            )}
+                          </div>
+                        )}
+                        {/* Text content */}
+                        {msg.content && (
+                          <div className="px-4 py-2.5 leading-relaxed">
+                            {msg.content}
+                            {msg.editedAt && (
+                              <span className="text-[10px] ml-2 opacity-60">(edited)</span>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -486,21 +537,75 @@ function ChatSection({ groupId }: { groupId: number }) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Media URL input (shown when image/video mode is active) */}
+      {mediaMode && (
+        <div className="border-t px-3 pt-3 pb-1 flex gap-2 items-center bg-muted/30">
+          {mediaMode === "image" ? (
+            <ImagePlus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          ) : (
+            <Video className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          )}
+          <Input
+            value={mediaUrl}
+            onChange={e => setMediaUrl(e.target.value)}
+            placeholder={`Paste ${mediaMode === "image" ? "image" : "video"} URL here...`}
+            className="h-8 text-sm bg-background border-border rounded-full"
+            autoFocus
+            data-testid="input-media-url"
+          />
+          <button
+            onClick={() => { setMediaMode(null); setMediaUrl(""); }}
+            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Input area */}
-      <div className="border-t p-3 flex gap-2 bg-background/80 backdrop-blur">
+      <div className="border-t p-3 flex gap-2 items-center bg-background/80 backdrop-blur">
+        {/* Photo button */}
+        <button
+          onClick={() => toggleMediaMode("image")}
+          className={`flex-shrink-0 p-2 rounded-full transition-colors ${
+            mediaMode === "image"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+          title="Share photo"
+          data-testid="button-share-photo"
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+
+        {/* Video button */}
+        <button
+          onClick={() => toggleMediaMode("video")}
+          className={`flex-shrink-0 p-2 rounded-full transition-colors ${
+            mediaMode === "video"
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-muted"
+          }`}
+          title="Share video"
+          data-testid="button-share-video"
+        >
+          <Video className="w-4 h-4" />
+        </button>
+
         <Input
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type a message... (Enter to send)"
-          className="rounded-full bg-muted border-0 focus-visible:ring-1"
+          placeholder="Type a message..."
+          className="rounded-full bg-muted border-0 focus-visible:ring-1 flex-1"
           data-testid="input-chat-message"
         />
+
         <Button
           size="icon"
           className="rounded-full flex-shrink-0"
           onClick={handleSend}
-          disabled={sending || !input.trim()}
+          disabled={sending || !canSend}
           data-testid="button-send-message"
         >
           <Send className="w-4 h-4" />
