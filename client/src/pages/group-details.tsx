@@ -66,8 +66,11 @@ export default function GroupDetails() {
   const { user } = useAuth();
   const [codeCopied, setCodeCopied] = useState(false);
   const [photoDialogOpen, setPhotoDialogOpen] = useState(false);
-  const [photoInput, setPhotoInput] = useState("");
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  const [photoServerUrl, setPhotoServerUrl] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const { mutate: updatePhoto, isPending: updatingPhoto } = useUpdateGroupPhoto(id);
+  const photoFileRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const myRole = members?.find(m => m.userId === user?.id)?.role;
@@ -81,12 +84,41 @@ export default function GroupDetails() {
     toast({ description: "Invite code copied!" });
   };
 
+  const clearPhotoDialog = () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    setPhotoPreviewUrl(null);
+    setPhotoServerUrl(null);
+    setPhotoUploading(false);
+    if (photoFileRef.current) photoFileRef.current.value = "";
+  };
+
+  const handleGroupPhotoFileSelected = async (file: File) => {
+    const localUrl = URL.createObjectURL(file);
+    setPhotoPreviewUrl(localUrl);
+    setPhotoServerUrl(null);
+    setPhotoUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: form });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setPhotoServerUrl(data.url);
+    } catch {
+      toast({ variant: "destructive", description: "Could not upload photo. Try again." });
+      URL.revokeObjectURL(localUrl);
+      setPhotoPreviewUrl(null);
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const handlePhotoSave = () => {
-    if (!photoInput.trim()) return;
-    updatePhoto(photoInput.trim(), {
+    if (!photoServerUrl) return;
+    updatePhoto(photoServerUrl, {
       onSuccess: () => {
         setPhotoDialogOpen(false);
-        setPhotoInput("");
+        clearPhotoDialog();
       },
     });
   };
@@ -116,7 +148,7 @@ export default function GroupDetails() {
             </div>
             {isAdmin && (
               <button
-                onClick={() => { setPhotoInput(group.photoUrl || ""); setPhotoDialogOpen(true); }}
+                onClick={() => setPhotoDialogOpen(true)}
                 className="absolute inset-0 rounded-2xl bg-black/50 opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-center justify-center text-white"
                 data-testid="button-edit-group-photo"
                 title="Change group photo"
@@ -148,35 +180,70 @@ export default function GroupDetails() {
         </div>
       </div>
 
+      {/* Hidden file input for group photo */}
+      <input
+        ref={photoFileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleGroupPhotoFileSelected(f); }}
+        data-testid="input-group-photo-file"
+      />
+
       {/* Group Photo Dialog */}
-      <Dialog open={photoDialogOpen} onOpenChange={setPhotoDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+      <Dialog open={photoDialogOpen} onOpenChange={open => { if (!open) clearPhotoDialog(); setPhotoDialogOpen(open); }}>
+        <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>Update Group Photo</DialogTitle>
             <DialogDescription>
-              Set a photo URL to give your group a profile picture.
+              Choose a photo from your device to use as the group picture.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Photo URL</label>
-              <Input
-                placeholder="https://example.com/photo.jpg"
-                value={photoInput}
-                onChange={e => setPhotoInput(e.target.value)}
-                data-testid="input-group-photo-url"
-              />
-              <p className="text-xs text-muted-foreground">Paste a direct link to an image file.</p>
+          <div className="space-y-4 pt-2 flex flex-col items-center">
+            {/* Preview / placeholder */}
+            <div
+              className="relative w-36 h-36 rounded-2xl overflow-hidden border-2 border-dashed border-border bg-muted cursor-pointer hover:border-primary/60 transition-colors flex items-center justify-center"
+              onClick={() => photoFileRef.current?.click()}
+              data-testid="button-pick-group-photo"
+            >
+              {photoPreviewUrl ? (
+                <>
+                  <img src={photoPreviewUrl} alt="preview" className="w-full h-full object-cover" />
+                  {photoUploading && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <Loader2 className="w-6 h-6 text-white animate-spin" />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground p-4 text-center">
+                  <Camera className="w-8 h-8 opacity-50" />
+                  <span className="text-xs">Tap to choose photo</span>
+                </div>
+              )}
             </div>
-            {photoInput && (
-              <div className="rounded-xl overflow-hidden border aspect-square w-32 mx-auto">
-                <img src={photoInput} alt="preview" className="w-full h-full object-cover" onError={e => (e.currentTarget.style.display = "none")} />
-              </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => photoFileRef.current?.click()}
+              className="text-xs"
+              data-testid="button-browse-group-photo"
+            >
+              <Camera className="w-3.5 h-3.5 mr-1.5" />
+              {photoPreviewUrl ? "Choose different photo" : "Browse photos"}
+            </Button>
+
+            {photoUploading && (
+              <p className="text-xs text-muted-foreground">Uploading…</p>
+            )}
+            {photoServerUrl && !photoUploading && (
+              <p className="text-xs text-green-600 dark:text-green-400">Photo ready to save</p>
             )}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setPhotoDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handlePhotoSave} disabled={updatingPhoto || !photoInput.trim()}>
+            <Button variant="ghost" onClick={() => { setPhotoDialogOpen(false); clearPhotoDialog(); }}>Cancel</Button>
+            <Button onClick={handlePhotoSave} disabled={updatingPhoto || photoUploading || !photoServerUrl}>
               {updatingPhoto ? "Saving..." : "Save Photo"}
             </Button>
           </DialogFooter>
