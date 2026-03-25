@@ -47,8 +47,11 @@ export function PollCard({ poll, groupId }: PollCardProps) {
                 <span className="font-medium">{option.text}</span>
                 <span className="text-muted-foreground text-xs">{voteCount} votes</span>
               </div>
-              <div className="relative">
-                <Progress value={percentage} className="h-2 bg-muted" indicatorClassName="bg-primary/80" />
+              <div className="relative h-2 rounded-full bg-muted overflow-hidden">
+                <div
+                  className="h-full bg-primary/80 rounded-full transition-all duration-500"
+                  style={{ width: `${percentage}%` }}
+                />
               </div>
               <Button
                 variant={isSelected ? "default" : "outline"}

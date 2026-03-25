@@ -35,8 +35,8 @@ export function CreatePollDialog({ groupId }: CreatePollDialogProps) {
   });
 
   const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: "options" as any, // Cast because zod schema is strictly typed but field array needs path
+    control: form.control as any,
+    name: "options",
   });
 
   const onSubmit = (data: z.infer<typeof insertPollSchema>) => {

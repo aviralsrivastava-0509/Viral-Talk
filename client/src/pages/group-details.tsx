@@ -54,7 +54,8 @@ import {
   Camera,
   Video,
   X,
-  ImagePlus,
+  Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
 
 export default function GroupDetails() {
@@ -324,7 +325,21 @@ function PostsList({ groupId }: { groupId: number }) {
 
 // ── Chat ─────────────────────────────────────────────────────────────────────
 
-type MediaMode = null | "image" | "video";
+// Upload a file to the server and return { url, mediaType }
+async function uploadFile(file: File): Promise<{ url: string; mediaType: "image" | "video" }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/upload", { method: "POST", body: form });
+  if (!res.ok) throw new Error("Upload failed");
+  return res.json();
+}
+
+interface PendingMedia {
+  url: string;        // local object URL for preview
+  serverUrl?: string; // server URL after upload
+  mediaType: "image" | "video";
+  uploading: boolean;
+}
 
 function ChatSection({ groupId }: { groupId: number }) {
   const { data: messages, isLoading } = useMessages(groupId);
@@ -335,37 +350,54 @@ function ChatSection({ groupId }: { groupId: number }) {
   const { toast } = useToast();
 
   const [input, setInput] = useState("");
-  const [mediaMode, setMediaMode] = useState<MediaMode>(null);
-  const [mediaUrl, setMediaUrl] = useState("");
-
+  const [pendingMedia, setPendingMedia] = useState<PendingMedia | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingContent, setEditingContent] = useState("");
+
   const bottomRef = useRef<HTMLDivElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const toggleMediaMode = (mode: MediaMode) => {
-    setMediaMode(prev => prev === mode ? null : mode);
-    setMediaUrl("");
+  // Handle file selected from gallery or camera
+  const handleFileSelected = async (file: File) => {
+    const mediaType = file.type.startsWith("video/") ? "video" : "image";
+    const localUrl = URL.createObjectURL(file);
+    setPendingMedia({ url: localUrl, mediaType, uploading: true });
+    try {
+      const result = await uploadFile(file);
+      setPendingMedia(prev => prev ? { ...prev, serverUrl: result.url, uploading: false } : null);
+    } catch {
+      toast({ variant: "destructive", description: "Could not upload file. Try again." });
+      URL.revokeObjectURL(localUrl);
+      setPendingMedia(null);
+    }
   };
 
-  const canSend = (input.trim() || (mediaMode && mediaUrl.trim()));
+  const clearPendingMedia = () => {
+    if (pendingMedia?.url) URL.revokeObjectURL(pendingMedia.url);
+    setPendingMedia(null);
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+  };
+
+  const canSend = !!(input.trim() || (pendingMedia && !pendingMedia.uploading && pendingMedia.serverUrl));
 
   const handleSend = () => {
     if (!canSend) return;
     const payload: SendMessagePayload = {};
     if (input.trim()) payload.content = input.trim();
-    if (mediaMode && mediaUrl.trim()) {
-      payload.mediaUrl = mediaUrl.trim();
-      payload.mediaType = mediaMode;
+    if (pendingMedia?.serverUrl) {
+      payload.mediaUrl = pendingMedia.serverUrl;
+      payload.mediaType = pendingMedia.mediaType;
     }
     setInput("");
-    setMediaUrl("");
-    setMediaMode(null);
+    clearPendingMedia();
     sendMessage(payload, {
-      onError: () => toast({ variant: "destructive", description: "Failed to send message." }),
+      onError: () => toast({ variant: "destructive", description: "Failed to send." }),
     });
   };
 
@@ -390,10 +422,7 @@ function ChatSection({ groupId }: { groupId: number }) {
     if (!editingContent.trim()) return;
     editMessage(
       { messageId, content: editingContent.trim() },
-      {
-        onSuccess: () => cancelEditing(),
-        onError: () => toast({ variant: "destructive", description: "Could not edit message." }),
-      }
+      { onSuccess: cancelEditing, onError: () => toast({ variant: "destructive", description: "Could not edit message." }) }
     );
   };
 
@@ -405,6 +434,25 @@ function ChatSection({ groupId }: { groupId: number }) {
 
   return (
     <div className="flex flex-col h-[70vh] border rounded-2xl overflow-hidden bg-card">
+      {/* Hidden file inputs */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelected(f); }}
+        data-testid="input-gallery-file"
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*,video/*"
+        capture="environment"
+        className="hidden"
+        onChange={e => { const f = e.target.files?.[0]; if (f) handleFileSelected(f); }}
+        data-testid="input-camera-file"
+      />
+
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {isLoading ? (
@@ -420,8 +468,8 @@ function ChatSection({ groupId }: { groupId: number }) {
           messages.map(msg => {
             const isMe = msg.userId === user?.id;
             const isBeingEdited = editingId === msg.id;
-            const hasMedia = !!(msg as any).mediaUrl;
-            const mediaType = (msg as any).mediaType as "image" | "video" | undefined;
+            const msgMediaUrl = (msg as any).mediaUrl as string | undefined;
+            const msgMediaType = (msg as any).mediaType as "image" | "video" | undefined;
 
             return (
               <div
@@ -448,10 +496,7 @@ function ChatSection({ groupId }: { groupId: number }) {
                       <Input
                         value={editingContent}
                         onChange={e => setEditingContent(e.target.value)}
-                        onKeyDown={e => {
-                          if (e.key === "Enter") submitEdit(msg.id);
-                          if (e.key === "Escape") cancelEditing();
-                        }}
+                        onKeyDown={e => { if (e.key === "Enter") submitEdit(msg.id); if (e.key === "Escape") cancelEditing(); }}
                         className="rounded-xl text-sm h-9"
                         autoFocus
                         data-testid={`input-edit-message-${msg.id}`}
@@ -489,37 +534,25 @@ function ChatSection({ groupId }: { groupId: number }) {
                       )}
 
                       <div className={`rounded-2xl overflow-hidden text-sm max-w-full ${
-                        isMe
-                          ? "bg-primary text-primary-foreground rounded-br-sm"
-                          : "bg-muted rounded-bl-sm"
+                        isMe ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted rounded-bl-sm"
                       }`}>
-                        {/* Media preview */}
-                        {hasMedia && (
-                          <div className="overflow-hidden rounded-xl">
-                            {mediaType === "video" ? (
-                              <video
-                                controls
-                                src={(msg as any).mediaUrl}
-                                className="max-w-[280px] max-h-[300px] object-cover block"
-                              />
-                            ) : (
-                              <img
-                                src={(msg as any).mediaUrl}
-                                alt="shared media"
-                                className="max-w-[280px] max-h-[300px] object-cover block cursor-pointer"
-                                loading="lazy"
-                                onClick={() => window.open((msg as any).mediaUrl, "_blank")}
-                              />
-                            )}
-                          </div>
+                        {msgMediaUrl && (
+                          msgMediaType === "video" ? (
+                            <video controls src={msgMediaUrl} className="max-w-[280px] max-h-[300px] object-cover block" />
+                          ) : (
+                            <img
+                              src={msgMediaUrl}
+                              alt="shared media"
+                              className="max-w-[280px] max-h-[300px] object-cover block cursor-pointer"
+                              loading="lazy"
+                              onClick={() => window.open(msgMediaUrl, "_blank")}
+                            />
+                          )
                         )}
-                        {/* Text content */}
                         {msg.content && (
                           <div className="px-4 py-2.5 leading-relaxed">
                             {msg.content}
-                            {msg.editedAt && (
-                              <span className="text-[10px] ml-2 opacity-60">(edited)</span>
-                            )}
+                            {msg.editedAt && <span className="text-[10px] ml-2 opacity-60">(edited)</span>}
                           </div>
                         )}
                       </div>
@@ -537,59 +570,50 @@ function ChatSection({ groupId }: { groupId: number }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Media URL input (shown when image/video mode is active) */}
-      {mediaMode && (
-        <div className="border-t px-3 pt-3 pb-1 flex gap-2 items-center bg-muted/30">
-          {mediaMode === "image" ? (
-            <ImagePlus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          ) : (
-            <Video className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-          )}
-          <Input
-            value={mediaUrl}
-            onChange={e => setMediaUrl(e.target.value)}
-            placeholder={`Paste ${mediaMode === "image" ? "image" : "video"} URL here...`}
-            className="h-8 text-sm bg-background border-border rounded-full"
-            autoFocus
-            data-testid="input-media-url"
-          />
-          <button
-            onClick={() => { setMediaMode(null); setMediaUrl(""); }}
-            className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0"
-          >
+      {/* Pending media preview strip */}
+      {pendingMedia && (
+        <div className="border-t px-3 py-2 flex items-center gap-3 bg-muted/30">
+          <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border flex-shrink-0">
+            {pendingMedia.mediaType === "video" ? (
+              <video src={pendingMedia.url} className="w-full h-full object-cover" />
+            ) : (
+              <img src={pendingMedia.url} alt="preview" className="w-full h-full object-cover" />
+            )}
+            {pendingMedia.uploading && (
+              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                <Loader2 className="w-5 h-5 text-white animate-spin" />
+              </div>
+            )}
+          </div>
+          <div className="flex-1 text-xs text-muted-foreground">
+            {pendingMedia.uploading ? "Uploading..." : "Ready to send"}
+          </div>
+          <button onClick={clearPendingMedia} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="w-4 h-4" />
           </button>
         </div>
       )}
 
-      {/* Input area */}
+      {/* Input bar */}
       <div className="border-t p-3 flex gap-2 items-center bg-background/80 backdrop-blur">
-        {/* Photo button */}
+        {/* Gallery picker */}
         <button
-          onClick={() => toggleMediaMode("image")}
-          className={`flex-shrink-0 p-2 rounded-full transition-colors ${
-            mediaMode === "image"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-          title="Share photo"
-          data-testid="button-share-photo"
+          onClick={() => galleryInputRef.current?.click()}
+          className="flex-shrink-0 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Browse photos & videos"
+          data-testid="button-pick-gallery"
         >
-          <Camera className="w-4 h-4" />
+          <ImageIcon className="w-5 h-5" />
         </button>
 
-        {/* Video button */}
+        {/* Camera capture */}
         <button
-          onClick={() => toggleMediaMode("video")}
-          className={`flex-shrink-0 p-2 rounded-full transition-colors ${
-            mediaMode === "video"
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted"
-          }`}
-          title="Share video"
-          data-testid="button-share-video"
+          onClick={() => cameraInputRef.current?.click()}
+          className="flex-shrink-0 p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="Take photo or record video"
+          data-testid="button-open-camera"
         >
-          <Video className="w-4 h-4" />
+          <Camera className="w-5 h-5" />
         </button>
 
         <Input
@@ -608,7 +632,7 @@ function ChatSection({ groupId }: { groupId: number }) {
           disabled={sending || !canSend}
           data-testid="button-send-message"
         >
-          <Send className="w-4 h-4" />
+          {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
         </Button>
       </div>
     </div>

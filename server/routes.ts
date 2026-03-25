@@ -4,14 +4,49 @@ import { storage } from "./storage";
 import { setupAuth, registerAuthRoutes, isAuthenticated } from "./replit_integrations/auth";
 import { api } from "@shared/routes";
 import { z } from "zod";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+// Set up multer storage for uploaded media
+const uploadsDir = path.join(process.cwd(), "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, uploadsDir),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+    },
+  }),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = /image\/(jpeg|png|gif|webp)|video\/(mp4|webm|quicktime|mov)/;
+    if (allowed.test(file.mimetype)) cb(null, true);
+    else cb(new Error("Only images and videos are allowed"));
+  },
+});
 
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Serve uploaded files as static
+  const express = (await import("express")).default;
+  app.use("/uploads", express.static(uploadsDir));
+
   // Setup Auth
   await setupAuth(app);
   registerAuthRoutes(app);
+
+  // === FILE UPLOAD ===
+  app.post("/api/upload", isAuthenticated, upload.single("file"), (req: any, res) => {
+    if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+    const mediaType = req.file.mimetype.startsWith("video/") ? "video" : "image";
+    const url = `/uploads/${req.file.filename}`;
+    res.json({ url, mediaType });
+  });
 
   // === GROUPS ===
   app.get(api.groups.list.path, isAuthenticated, async (req: any, res) => {
