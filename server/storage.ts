@@ -1,6 +1,6 @@
 import { db } from "./db";
 import { groups, members, posts, events, polls, pollOptions, pollVotes, messages, users } from "@shared/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface IStorage {
@@ -33,6 +33,11 @@ export interface IStorage {
   // Messages
   getGroupMessages(groupId: number): Promise<any[]>;
   createMessage(userId: string, groupId: number, content: string): Promise<any>;
+  editMessage(messageId: number, userId: string, content: string): Promise<any>;
+  deleteMessage(messageId: number, userId: string): Promise<void>;
+
+  // Group updates
+  updateGroupPhoto(groupId: number, adminId: string, photoUrl: string): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -209,6 +214,34 @@ export class DatabaseStorage implements IStorage {
       content,
     }).returning();
     return message;
+  }
+
+  async editMessage(messageId: number, userId: string, content: string): Promise<any> {
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!msg || msg.userId !== userId) throw new Error("Forbidden");
+    const [updated] = await db
+      .update(messages)
+      .set({ content, editedAt: new Date() })
+      .where(eq(messages.id, messageId))
+      .returning();
+    return updated;
+  }
+
+  async deleteMessage(messageId: number, userId: string): Promise<void> {
+    const [msg] = await db.select().from(messages).where(eq(messages.id, messageId));
+    if (!msg || msg.userId !== userId) throw new Error("Forbidden");
+    await db.delete(messages).where(eq(messages.id, messageId));
+  }
+
+  async updateGroupPhoto(groupId: number, adminId: string, photoUrl: string): Promise<any> {
+    const role = await this.getMemberRole(adminId, groupId);
+    if (role !== "admin") throw new Error("Forbidden");
+    const [updated] = await db
+      .update(groups)
+      .set({ photoUrl })
+      .where(eq(groups.id, groupId))
+      .returning();
+    return updated;
   }
 }
 

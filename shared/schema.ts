@@ -10,6 +10,7 @@ export const groups = pgTable("groups", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
   description: text("description"),
+  photoUrl: text("photo_url"), // Group profile photo
   code: text("code").notNull().unique(), // Unique code for joining
   createdBy: varchar("created_by").notNull(), // User ID
   createdAt: timestamp("created_at").defaultNow(),
@@ -128,6 +129,7 @@ export const messages = pgTable("messages", {
   groupId: integer("group_id").notNull(),
   userId: varchar("user_id").notNull(),
   content: text("content").notNull(),
+  editedAt: timestamp("edited_at"), // Set when message is edited
   createdAt: timestamp("created_at").defaultNow(),
 });
 

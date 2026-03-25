@@ -58,6 +58,35 @@ export function useCreateGroup() {
   });
 }
 
+export function useUpdateGroupPhoto(groupId: number) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (photoUrl: string) => {
+      const res = await fetch(`/api/groups/${groupId}/photo`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoUrl }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.message || "Failed to update group photo");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.groups.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.groups.get.path, groupId] });
+      toast({ description: "Group photo updated!" });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", description: err.message });
+    },
+  });
+}
+
 export function useJoinGroup() {
   const queryClient = useQueryClient();
   const { toast } = useToast();

@@ -139,5 +139,42 @@ export async function registerRoutes(
     res.status(201).json(message);
   });
 
+  app.patch("/api/groups/:groupId/messages/:messageId", isAuthenticated, async (req: any, res) => {
+    try {
+      const { content } = req.body;
+      if (!content || typeof content !== "string" || content.trim().length === 0) {
+        return res.status(400).json({ message: "Content is required" });
+      }
+      const updated = await storage.editMessage(Number(req.params.messageId), req.user.claims.sub, content.trim());
+      res.json(updated);
+    } catch (err: any) {
+      if (err.message === "Forbidden") return res.status(403).json({ message: "You can only edit your own messages" });
+      throw err;
+    }
+  });
+
+  app.delete("/api/groups/:groupId/messages/:messageId", isAuthenticated, async (req: any, res) => {
+    try {
+      await storage.deleteMessage(Number(req.params.messageId), req.user.claims.sub);
+      res.json({ success: true });
+    } catch (err: any) {
+      if (err.message === "Forbidden") return res.status(403).json({ message: "You can only delete your own messages" });
+      throw err;
+    }
+  });
+
+  // === GROUP PHOTO ===
+  app.patch("/api/groups/:id/photo", isAuthenticated, async (req: any, res) => {
+    try {
+      const { photoUrl } = req.body;
+      if (typeof photoUrl !== "string") return res.status(400).json({ message: "photoUrl required" });
+      const updated = await storage.updateGroupPhoto(Number(req.params.id), req.user.claims.sub, photoUrl);
+      res.json(updated);
+    } catch (err: any) {
+      if (err.message === "Forbidden") return res.status(403).json({ message: "Only admins can update the group photo" });
+      throw err;
+    }
+  });
+
   return httpServer;
 }

@@ -46,8 +46,14 @@ export default function Dashboard() {
               <Card className="h-full hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group border-border/50 overflow-hidden">
                 <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent p-6 pb-4">
                   <div className="flex justify-between items-start">
-                    <div className="w-12 h-12 rounded-xl bg-white shadow-sm flex items-center justify-center text-2xl mb-2 group-hover:scale-110 transition-transform duration-300">
-                      {group.name[0]}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden shadow-sm mb-2 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 border border-border bg-muted">
+                      {group.photoUrl ? (
+                        <img src={group.photoUrl} alt={group.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-2xl font-bold text-primary">
+                          {group.name[0]?.toUpperCase()}
+                        </div>
+                      )}
                     </div>
                     <ChevronRight className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
