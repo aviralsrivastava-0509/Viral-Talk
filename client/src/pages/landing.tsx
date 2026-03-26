@@ -3,7 +3,12 @@ import { ArrowRight, MessageCircle, Calendar, Users, BarChart3, Sparkles } from 
 
 export default function Landing() {
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    // Navigate the top-level window to avoid iframe restrictions in dev preview
+    if (window.top && window.top !== window) {
+      window.top.location.href = window.location.origin + "/api/login";
+    } else {
+      window.location.href = "/api/login";
+    }
   };
 
   const features = [
