@@ -26,7 +26,7 @@ const formSchema = insertGroupSchema.extend({
   code: z.string().min(3).max(20).regex(/^[a-zA-Z0-9_-]+$/, "Alphanumeric, dashes, or underscores only"),
 });
 
-export function CreateGroupDialog() {
+export function CreateGroupDialog({ children }: { children?: React.ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const { mutate, isPending } = useCreateGroup();
   const form = useForm<z.infer<typeof formSchema>>({
@@ -50,10 +50,14 @@ export function CreateGroupDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2 shadow-lg shadow-primary/20 hover:shadow-primary/40 transition-all">
-          <Plus className="w-4 h-4" />
-          Create Group
-        </Button>
+        {children ? (
+          <span>{children}</span>
+        ) : (
+          <Button className="gap-2 rounded-full shadow-lg shadow-primary/20 hover:shadow-primary/30 transition-all">
+            <Plus className="w-4 h-4" />
+            Create Group
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>

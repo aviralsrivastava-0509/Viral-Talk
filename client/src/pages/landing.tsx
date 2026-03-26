@@ -1,78 +1,96 @@
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle, Calendar, Users } from "lucide-react";
+import { ArrowRight, MessageCircle, Calendar, Users, BarChart3, Sparkles } from "lucide-react";
 
 export default function Landing() {
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
 
+  const features = [
+    { icon: MessageCircle, label: "Group Chat", color: "text-violet-500", bg: "bg-violet-50 dark:bg-violet-950/40" },
+    { icon: Sparkles, label: "Stories", color: "text-pink-500", bg: "bg-pink-50 dark:bg-pink-950/40" },
+    { icon: Calendar, label: "Events", color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40" },
+    { icon: BarChart3, label: "Polls", color: "text-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
+    { icon: Users, label: "Private Groups", color: "text-amber-500", bg: "bg-amber-50 dark:bg-amber-950/40" },
+  ];
+
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <nav className="p-6 flex justify-between items-center max-w-7xl mx-auto w-full">
-        <div className="text-2xl font-bold font-display flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white shadow-lg shadow-primary/20">
-            V
+    <div className="min-h-screen bg-background relative overflow-hidden flex flex-col">
+      {/* Soft ambient gradients */}
+      <div className="fixed inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[400px] rounded-full bg-violet-500/6 blur-[120px]" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-purple-400/5 blur-[100px]" />
+        <div className="absolute top-1/2 left-0 w-[300px] h-[300px] rounded-full bg-blue-400/4 blur-[100px]" />
+      </div>
+
+      {/* Minimal top bar */}
+      <nav className="flex justify-between items-center px-6 py-5 max-w-6xl mx-auto w-full">
+        <div className="flex items-center gap-2.5">
+          <div className="bg-white rounded-xl shadow-sm p-0.5">
+            <img src="/viraltalk-logo.png" alt="ViralTalk" className="h-7 w-auto" />
           </div>
-          ViralTalk
+          <span className="font-bold text-lg tracking-tight text-foreground">ViralTalk</span>
         </div>
-        <Button onClick={handleLogin}>Log In</Button>
+        <Button variant="ghost" size="sm" onClick={handleLogin} className="rounded-full px-5 text-sm font-medium">
+          Sign in
+        </Button>
       </nav>
 
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-4 max-w-5xl mx-auto w-full gap-8 py-20">
-        <div className="space-y-4 animate-in fade-in slide-in-from-bottom-8 duration-700">
-          <h1 className="text-5xl md:text-7xl font-display font-extrabold tracking-tight">
-            Your friends, <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-400">
-              all in one place.
-            </span>
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Plan events, share stories, vote on polls, and keep the group chat alive.
-            The only app your friend group needs.
-          </p>
+      {/* Hero — centred, breathing */}
+      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-10 py-16">
+        {/* Logo + headline block */}
+        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-700">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-3xl bg-violet-400/20 blur-2xl scale-110" />
+            <img
+              src="/viraltalk-logo.png"
+              alt="ViralTalk logo"
+              className="relative h-28 w-auto drop-shadow-xl"
+            />
+          </div>
+
+          <div className="space-y-3 max-w-lg">
+            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-none">
+              <span className="text-foreground">ViralTalk</span>
+            </h1>
+            <p className="text-xl text-muted-foreground font-medium">
+              Where your friend group comes alive.
+            </p>
+            <p className="text-sm text-muted-foreground/70 max-w-sm mx-auto leading-relaxed">
+              Private groups, real conversations — stories, events, polls, and chat, all in one calm place.
+            </p>
+          </div>
         </div>
 
-        <div className="flex gap-4 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-          <Button size="lg" className="h-14 px-8 text-lg rounded-full shadow-xl shadow-primary/20 hover:shadow-2xl hover:shadow-primary/30 transition-all hover:-translate-y-1" onClick={handleLogin}>
+        {/* CTA */}
+        <div className="flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
+          <Button
+            size="lg"
+            onClick={handleLogin}
+            className="h-13 px-10 rounded-full text-base font-semibold shadow-xl shadow-violet-500/20 hover:shadow-2xl hover:shadow-violet-500/30 hover:-translate-y-0.5 transition-all duration-200"
+          >
             Get Started
-            <ArrowRight className="ml-2 w-5 h-5" />
+            <ArrowRight className="ml-2 w-4 h-4" />
           </Button>
+          <p className="text-xs text-muted-foreground/60">Sign in with your Replit account — free forever</p>
         </div>
 
-        {/* Feature Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-16 w-full animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
-          <div className="p-6 rounded-2xl bg-card border shadow-lg hover:shadow-xl transition-shadow text-left">
-            <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center mb-4">
-              <MessageCircle className="w-6 h-6" />
+        {/* Feature pills */}
+        <div className="flex flex-wrap justify-center gap-2.5 animate-in fade-in duration-700 delay-300 max-w-md">
+          {features.map(({ icon: Icon, label, color, bg }) => (
+            <div
+              key={label}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full ${bg} border border-border/40 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground`}
+            >
+              <Icon className={`w-3.5 h-3.5 ${color}`} />
+              {label}
             </div>
-            <h3 className="text-xl font-bold mb-2">Group Chat & Stories</h3>
-            <p className="text-muted-foreground">Share ephemeral stories or important announcements. Keep everyone in the loop.</p>
-          </div>
-          <div className="p-6 rounded-2xl bg-card border shadow-lg hover:shadow-xl transition-shadow text-left">
-            <div className="w-12 h-12 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mb-4">
-              <Calendar className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Event Planning</h3>
-            <p className="text-muted-foreground">Coordinate meetups with dates, times, and locations. No more "when are we free?"</p>
-          </div>
-          <div className="p-6 rounded-2xl bg-card border shadow-lg hover:shadow-xl transition-shadow text-left">
-            <div className="w-12 h-12 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center mb-4">
-              <Users className="w-6 h-6" />
-            </div>
-            <h3 className="text-xl font-bold mb-2">Polls & Voting</h3>
-            <p className="text-muted-foreground">Decide where to eat or what movie to watch democratically. End the debates.</p>
-          </div>
-        </div>
-
-        {/* Abstract Background Decoration */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-          <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-primary/5 blur-[100px]" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-secondary/10 blur-[100px]" />
+          ))}
         </div>
       </main>
 
-      <footer className="py-8 text-center text-sm text-muted-foreground border-t">
-        &copy; {new Date().getFullYear()} ViralTalk. Built for fun.
+      <footer className="py-6 text-center text-xs text-muted-foreground/50">
+        &copy; {new Date().getFullYear()} ViralTalk
       </footer>
     </div>
   );

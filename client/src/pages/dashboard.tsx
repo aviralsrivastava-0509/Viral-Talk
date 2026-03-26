@@ -2,74 +2,104 @@ import { Link } from "wouter";
 import { useGroups } from "@/hooks/use-groups";
 import { CreateGroupDialog } from "@/components/create-group-dialog";
 import { JoinGroupDialog } from "@/components/join-group-dialog";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 import { Users, ChevronRight } from "lucide-react";
 
 export default function Dashboard() {
   const { data: groups, isLoading } = useGroups();
+  const { user } = useAuth();
+
+  const greeting = () => {
+    const h = new Date().getHours();
+    if (h < 12) return "Good morning";
+    if (h < 17) return "Good afternoon";
+    return "Good evening";
+  };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="space-y-8 animate-in fade-in duration-500 max-w-5xl">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-display font-bold">Your Groups</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your squads or join a new one.
-          </p>
+          <p className="text-sm text-muted-foreground font-medium mb-1">{greeting()}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            {user?.firstName ? `${user.firstName}'s Groups` : "Your Groups"}
+          </h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2.5 flex-shrink-0">
           <JoinGroupDialog />
           <CreateGroupDialog />
         </div>
       </div>
 
+      {/* Content */}
       {isLoading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-40 w-full rounded-2xl" />
+            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
           ))}
         </div>
       ) : groups?.length === 0 ? (
-        <div className="text-center py-20 bg-muted/30 rounded-3xl border-2 border-dashed border-muted-foreground/20">
-          <Users className="w-16 h-16 mx-auto text-muted-foreground/50 mb-4" />
-          <h3 className="text-xl font-bold text-foreground">No groups yet</h3>
-          <p className="text-muted-foreground max-w-md mx-auto mt-2 mb-6">
-            You aren't part of any groups yet. Create one for your friends or ask for a code to join an existing one!
+        <div className="flex flex-col items-center justify-center text-center py-24 px-8 bg-muted/20 rounded-3xl border border-dashed border-border/60">
+          <div className="w-16 h-16 rounded-2xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center mb-5">
+            <Users className="w-8 h-8 text-violet-500" />
+          </div>
+          <h3 className="text-xl font-semibold text-foreground mb-2">No groups yet</h3>
+          <p className="text-muted-foreground text-sm max-w-xs leading-relaxed mb-6">
+            Create a private group for your friends or enter a code to join one.
           </p>
-          <CreateGroupDialog />
+          <div className="flex gap-2.5">
+            <JoinGroupDialog />
+            <CreateGroupDialog />
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {groups?.map((group) => (
             <Link key={group.id} href={`/groups/${group.id}`}>
-              <Card className="h-full hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer group border-border/50 overflow-hidden">
-                <CardHeader className="bg-gradient-to-r from-primary/10 to-transparent p-6 pb-4">
-                  <div className="flex justify-between items-start">
-                    <div className="w-14 h-14 rounded-xl overflow-hidden shadow-sm mb-2 group-hover:scale-110 transition-transform duration-300 flex-shrink-0 border border-border bg-muted">
+              <div
+                className="group relative bg-card border border-border/50 rounded-2xl overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-violet-500/8 hover:-translate-y-0.5 transition-all duration-200"
+                data-testid={`card-group-${group.id}`}
+              >
+                {/* Top accent bar */}
+                <div className="h-1 w-full bg-gradient-to-r from-violet-500 to-purple-400 opacity-60 group-hover:opacity-100 transition-opacity" />
+
+                <div className="p-5">
+                  <div className="flex items-start justify-between mb-4">
+                    {/* Group avatar */}
+                    <div className="w-13 h-13 rounded-xl overflow-hidden border border-border/60 bg-muted flex-shrink-0 shadow-sm">
                       {group.photoUrl ? (
                         <img src={group.photoUrl} alt={group.name} className="w-full h-full object-cover" />
                       ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                          {group.name[0]?.toUpperCase()}
+                        <div className="w-full h-full bg-gradient-to-br from-violet-400/30 to-purple-400/20 flex items-center justify-center">
+                          <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
+                            {group.name[0]?.toUpperCase()}
+                          </span>
                         </div>
                       )}
                     </div>
-                    <ChevronRight className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all mt-0.5" />
                   </div>
-                  <h3 className="text-xl font-bold tracking-tight">{group.name}</h3>
-                </CardHeader>
-                <CardContent className="p-6 pt-2">
-                  <p className="text-muted-foreground text-sm line-clamp-2">
-                    {group.description || "No description provided."}
+
+                  <h3 className="text-base font-semibold text-foreground leading-tight mb-1 line-clamp-1">
+                    {group.name}
+                  </h3>
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                    {group.description || "No description yet."}
                   </p>
-                  <div className="mt-4 pt-4 border-t flex justify-between items-center text-xs text-muted-foreground font-mono bg-muted/30 -mx-6 -mb-6 px-6 py-3">
-                    <span>CODE: {group.code}</span>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+
+                <div className="px-5 py-3 border-t border-border/40 bg-muted/20 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground/70 font-mono tracking-wider">
+                    {group.code}
+                  </span>
+                  <span className="text-xs text-muted-foreground/50">Tap to open</span>
+                </div>
+              </div>
             </Link>
           ))}
+
         </div>
       )}
     </div>

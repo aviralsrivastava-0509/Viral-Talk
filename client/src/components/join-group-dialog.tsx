@@ -40,7 +40,7 @@ export function JoinGroupDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="gap-2">
+        <Button variant="outline" className="gap-2 rounded-full">
           <UserPlus className="w-4 h-4" />
           Join Group
         </Button>

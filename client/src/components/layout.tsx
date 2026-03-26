@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -20,26 +21,26 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-16 items-center justify-between px-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-2 text-primary hover:opacity-80 transition-opacity">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-primary to-purple-400 flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-primary/20">
-              V
+      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/90 backdrop-blur-md">
+        <div className="container flex h-15 items-center justify-between px-4 sm:px-8 max-w-7xl mx-auto">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
+            <div className="bg-white rounded-xl shadow-sm p-0.5 flex-shrink-0">
+              <img src="/viraltalk-logo.png" alt="ViralTalk" className="h-7 w-auto" />
             </div>
-            <span className="hidden sm:inline-block text-xl font-bold font-display tracking-tight text-foreground">
+            <span className="hidden sm:inline-block text-lg font-bold tracking-tight text-foreground">
               ViralTalk
             </span>
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Dark mode toggle */}
             <Button
               variant="ghost"
               size="icon"
               onClick={toggleTheme}
-              className="h-9 w-9 rounded-full"
+              className="h-9 w-9 rounded-full text-muted-foreground hover:text-foreground"
               data-testid="button-toggle-theme"
-              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
             >
               {theme === "dark" ? (
                 <Sun className="h-4 w-4 text-amber-400" />
@@ -51,32 +52,31 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {/* User menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-9 w-9 rounded-full" data-testid="button-user-menu">
-                  <div className="h-full w-full rounded-full bg-secondary/30 flex items-center justify-center text-secondary-foreground font-semibold border border-secondary/50 overflow-hidden">
-                    {user.profileImageUrl ? (
-                      <img src={user.profileImageUrl} alt={user.firstName || "User"} className="h-full w-full object-cover" />
-                    ) : (
-                      <User className="h-4 w-4" />
-                    )}
-                  </div>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full p-0" data-testid="button-user-menu">
+                  <Avatar className="h-8 w-8 border border-border/50">
+                    <AvatarImage src={user.profileImageUrl || undefined} alt={user.firstName || "User"} />
+                    <AvatarFallback className="bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-300 text-xs font-semibold">
+                      {user.firstName?.[0]?.toUpperCase() || <User className="h-3.5 w-3.5" />}
+                    </AvatarFallback>
+                  </Avatar>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.firstName} {user.lastName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+              <DropdownMenuContent className="w-56 rounded-xl shadow-lg border-border/50" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal px-3 py-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-sm font-semibold leading-none">{user.firstName} {user.lastName}</p>
+                    <p className="text-xs leading-none text-muted-foreground mt-1">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
-                  {theme === "dark" ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer rounded-lg mx-1 gap-2">
+                  {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4" />}
                   {theme === "dark" ? "Light mode" : "Dark mode"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => logout()} className="text-destructive cursor-pointer">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Log out
+                <DropdownMenuItem onClick={() => logout()} className="text-destructive cursor-pointer rounded-lg mx-1 mb-1 gap-2 focus:text-destructive">
+                  <LogOut className="h-4 w-4" />
+                  Sign out
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -84,7 +84,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="flex-1 container py-6 px-4 sm:px-8">
+      <main className="flex-1 container py-6 px-4 sm:px-8 max-w-7xl mx-auto">
         {children}
       </main>
     </div>
