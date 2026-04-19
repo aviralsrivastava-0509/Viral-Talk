@@ -99,6 +99,29 @@ export async function registerRoutes(
     res.json(members);
   });
 
+  // Leave group (current user leaves themselves)
+  app.delete("/api/groups/:groupId/leave", isAuthenticated, async (req, res) => {
+    const groupId = Number(req.params.groupId);
+    const userId = req.session.userId!;
+
+    const role = await storage.getMemberRole(userId, groupId);
+    if (!role) return res.status(404).json({ message: "You are not a member of this group" });
+
+    // If the leaving user is an admin, ensure there's at least one other admin
+    if (role === "admin") {
+      const allMembers = await storage.getGroupMembers(groupId);
+      const otherAdmins = allMembers.filter(m => m.role === "admin" && m.userId !== userId);
+      if (otherAdmins.length === 0) {
+        return res.status(400).json({
+          message: "You're the only admin. Transfer admin to someone else before leaving.",
+        });
+      }
+    }
+
+    await storage.removeMember(userId, groupId);
+    res.json({ ok: true });
+  });
+
   app.delete("/api/groups/:groupId/members/:userId", isAuthenticated, async (req, res) => {
     const groupId = Number(req.params.groupId);
     const requesterId = req.session.userId!;

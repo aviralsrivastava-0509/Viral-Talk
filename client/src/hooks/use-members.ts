@@ -21,3 +21,12 @@ export function useRemoveMember(groupId: number) {
     },
   });
 }
+
+export function useLeaveGroup(groupId: number) {
+  return useMutation({
+    mutationFn: () => apiRequest("DELETE", `/api/groups/${groupId}/leave`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+    },
+  });
+}

@@ -6,7 +6,7 @@ import { usePosts } from "@/hooks/use-posts";
 import { useEvents } from "@/hooks/use-events";
 import { usePolls } from "@/hooks/use-polls";
 import { useMessages, useSendMessage, useEditMessage, useDeleteMessage, type SendMessagePayload } from "@/hooks/use-messages";
-import { useMembers, useRemoveMember } from "@/hooks/use-members";
+import { useMembers, useRemoveMember, useLeaveGroup } from "@/hooks/use-members";
 import { useUpdateGroupPhoto } from "@/hooks/use-groups";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -56,6 +56,7 @@ import {
   X,
   Image as ImageIcon,
   Loader2,
+  LogOut,
 } from "lucide-react";
 
 export default function GroupDetails() {
@@ -75,6 +76,21 @@ export default function GroupDetails() {
 
   const myRole = members?.find(m => m.userId === user?.id)?.role;
   const isAdmin = myRole === "admin";
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const { mutate: leaveGroup, isPending: leaving } = useLeaveGroup(id);
+
+  const handleLeaveGroup = () => {
+    leaveGroup(undefined, {
+      onSuccess: () => {
+        setLeaveDialogOpen(false);
+        window.location.href = "/";
+      },
+      onError: (err: any) => {
+        toast({ variant: "destructive", description: err.message || "Could not leave group." });
+        setLeaveDialogOpen(false);
+      },
+    });
+  };
 
   const copyCode = () => {
     if (!group) return;
@@ -169,6 +185,16 @@ export default function GroupDetails() {
                 {codeCopied ? <Check className="w-3 h-3 mr-1" /> : <Copy className="w-3 h-3 mr-1" />}
                 Code: {group.code}
               </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive hover:bg-destructive/10 gap-1"
+                onClick={() => setLeaveDialogOpen(true)}
+                data-testid="button-leave-group"
+              >
+                <LogOut className="w-3 h-3" />
+                Leave
+              </Button>
             </div>
             <h1 className="text-3xl md:text-4xl font-display font-bold tracking-tight leading-tight mb-1">
               {group.name}
@@ -245,6 +271,33 @@ export default function GroupDetails() {
             <Button variant="ghost" onClick={() => { setPhotoDialogOpen(false); clearPhotoDialog(); }}>Cancel</Button>
             <Button onClick={handlePhotoSave} disabled={updatingPhoto || photoUploading || !photoServerUrl}>
               {updatingPhoto ? "Saving..." : "Save Photo"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Leave Group Confirmation Dialog */}
+      <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Leave "{group.name}"?</DialogTitle>
+            <DialogDescription>
+              {isAdmin
+                ? "You're an admin. You can only leave if there's at least one other admin."
+                : "You'll lose access to this group's posts, chat, and events. You can rejoin with the invite code."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="ghost" onClick={() => setLeaveDialogOpen(false)} disabled={leaving}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleLeaveGroup}
+              disabled={leaving}
+              data-testid="button-confirm-leave-group"
+            >
+              {leaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Leaving…</> : "Leave Group"}
             </Button>
           </DialogFooter>
         </DialogContent>
