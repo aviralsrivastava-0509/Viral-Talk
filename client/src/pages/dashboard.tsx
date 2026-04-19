@@ -66,20 +66,8 @@ export default function Dashboard() {
                 <div className="h-1 w-full bg-gradient-to-r from-violet-500 to-purple-400 opacity-60 group-hover:opacity-100 transition-opacity" />
 
                 <div className="p-5">
-                  <div className="flex items-start justify-between mb-4">
-                    {/* Group avatar */}
-                    <div className="w-13 h-13 rounded-xl overflow-hidden border border-border/60 bg-muted flex-shrink-0 shadow-sm">
-                      {group.photoUrl ? (
-                        <img src={group.photoUrl} alt={group.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-violet-400/30 to-purple-400/20 flex items-center justify-center">
-                          <span className="text-xl font-bold text-violet-600 dark:text-violet-400">
-                            {group.name[0]?.toUpperCase()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all mt-0.5" />
+                  <div className="flex items-start justify-end mb-3">
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/40 group-hover:text-muted-foreground group-hover:translate-x-0.5 transition-all" />
                   </div>
 
                   <h3 className="text-base font-semibold text-foreground leading-tight mb-1 line-clamp-1">
