@@ -1,9 +1,17 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, MessageCircle, Calendar, Users, BarChart3, Sparkles } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/hooks/use-auth";
+import { ArrowRight, Loader2, MessageCircle, Calendar, Users, BarChart3, Sparkles } from "lucide-react";
 
 export default function Landing() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const { login, isLoggingIn, loginError } = useAuth();
+  const [username, setUsername] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username.trim().length < 2) return;
+    login(username.trim());
   };
 
   const features = [
@@ -23,73 +31,100 @@ export default function Landing() {
         <div className="absolute top-1/2 left-0 w-[300px] h-[300px] rounded-full bg-blue-400/4 blur-[100px]" />
       </div>
 
-      {/* Minimal top bar */}
-      <nav className="flex justify-between items-center px-6 py-5 max-w-6xl mx-auto w-full">
+      {/* Top bar */}
+      <nav className="flex items-center px-6 py-5 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-2.5">
-          <div className="bg-white rounded-xl shadow-sm p-0.5">
+          <div className="bg-white rounded-xl shadow-sm p-0.5 flex-shrink-0">
             <img src="/viraltalk-logo.png" alt="ViralTalk" className="h-7 w-auto" />
           </div>
           <span className="font-bold text-lg tracking-tight text-foreground">ViralTalk</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogin} className="rounded-full px-5 text-sm font-medium">
-          Sign in
-        </Button>
       </nav>
 
-      {/* Hero — centred, breathing */}
-      <main className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-10 py-16">
-        {/* Logo + headline block */}
-        <div className="flex flex-col items-center gap-6 animate-in fade-in zoom-in-95 duration-700">
+      {/* Hero */}
+      <main className="flex-1 flex flex-col items-center justify-center px-6 py-12 gap-10">
+        {/* Logo + headline */}
+        <div className="flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-700 text-center">
           <div className="relative">
             <div className="absolute inset-0 rounded-3xl bg-violet-400/20 blur-2xl scale-110" />
-            <img
-              src="/viraltalk-logo.png"
-              alt="ViralTalk logo"
-              className="relative h-28 w-auto drop-shadow-xl"
-            />
+            <img src="/viraltalk-logo.png" alt="ViralTalk logo" className="relative h-24 w-auto drop-shadow-xl" />
           </div>
-
-          <div className="space-y-3 max-w-lg">
-            <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight leading-none">
-              <span className="text-foreground">ViralTalk</span>
-            </h1>
-            <p className="text-xl text-muted-foreground font-medium">
-              Where your friend group comes alive.
-            </p>
-            <p className="text-sm text-muted-foreground/70 max-w-sm mx-auto leading-relaxed">
-              Private groups, real conversations — stories, events, polls, and chat, all in one calm place.
-            </p>
+          <div className="space-y-2 max-w-md">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">ViralTalk</h1>
+            <p className="text-lg text-muted-foreground">Where your friend group comes alive.</p>
           </div>
         </div>
 
-        {/* CTA */}
-        <div className="flex flex-col items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-200">
-          <Button
-            size="lg"
-            onClick={handleLogin}
-            className="h-13 px-10 rounded-full text-base font-semibold shadow-xl shadow-violet-500/20 hover:shadow-2xl hover:shadow-violet-500/30 hover:-translate-y-0.5 transition-all duration-200"
-          >
-            Get Started
-            <ArrowRight className="ml-2 w-4 h-4" />
-          </Button>
-          <p className="text-xs text-muted-foreground/60">Sign in with your Replit account — free forever</p>
+        {/* Login card */}
+        <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 delay-150 w-full max-w-sm">
+          <div className="bg-card border border-border/50 rounded-2xl p-6 shadow-xl shadow-black/5">
+            <div className="mb-5 text-center">
+              <h2 className="text-base font-semibold text-foreground">Pick your username</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">New here? We'll create your account automatically.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground text-sm select-none">@</span>
+                <Input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="your_username"
+                  className="pl-8 h-11 rounded-xl bg-muted/50 border-border/50 focus:border-violet-400 focus:ring-violet-400/20 text-sm"
+                  autoFocus
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-testid="input-username"
+                  disabled={isLoggingIn}
+                />
+              </div>
+
+              {loginError && (
+                <p className="text-xs text-destructive text-center px-1">{loginError.message}</p>
+              )}
+
+              <Button
+                type="submit"
+                className="w-full h-11 rounded-xl font-semibold shadow-lg shadow-violet-500/20 hover:shadow-violet-500/30 transition-all"
+                disabled={isLoggingIn || username.trim().length < 2}
+                data-testid="button-login"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 w-4 h-4 animate-spin" />
+                    Signing in…
+                  </>
+                ) : (
+                  <>
+                    Continue
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </form>
+
+            <p className="text-[11px] text-muted-foreground/60 text-center mt-4 leading-relaxed">
+              Usernames are lowercase letters, numbers, _ and -. Min 2 characters.
+            </p>
+          </div>
         </div>
 
         {/* Feature pills */}
-        <div className="flex flex-wrap justify-center gap-2.5 animate-in fade-in duration-700 delay-300 max-w-md">
+        <div className="flex flex-wrap justify-center gap-2 animate-in fade-in duration-700 delay-300 max-w-sm">
           {features.map(({ icon: Icon, label, color, bg }) => (
             <div
               key={label}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full ${bg} border border-border/40 text-sm font-medium text-foreground/70 transition-colors hover:text-foreground`}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full ${bg} border border-border/30 text-xs font-medium text-foreground/60`}
             >
-              <Icon className={`w-3.5 h-3.5 ${color}`} />
+              <Icon className={`w-3 h-3 ${color}`} />
               {label}
             </div>
           ))}
         </div>
       </main>
 
-      <footer className="py-6 text-center text-xs text-muted-foreground/50">
+      <footer className="py-5 text-center text-xs text-muted-foreground/40">
         &copy; {new Date().getFullYear()} ViralTalk
       </footer>
     </div>
