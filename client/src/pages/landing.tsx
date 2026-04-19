@@ -34,9 +34,7 @@ export default function Landing() {
       {/* Top bar */}
       <nav className="flex items-center px-6 py-5 max-w-6xl mx-auto w-full">
         <div className="flex items-center gap-2.5">
-          <div className="bg-white rounded-xl shadow-sm p-0.5 flex-shrink-0">
-            <img src="/viraltalk-logo.png" alt="ViralTalk" className="h-7 w-auto" />
-          </div>
+          <img src="/viraltalk-icon.png" alt="ViralTalk" className="h-7 w-auto flex-shrink-0" />
           <span className="font-bold text-lg tracking-tight text-foreground">ViralTalk</span>
         </div>
       </nav>
@@ -47,7 +45,7 @@ export default function Landing() {
         <div className="flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-700 text-center">
           <div className="relative">
             <div className="absolute inset-0 rounded-3xl bg-violet-400/20 blur-2xl scale-110" />
-            <img src="/viraltalk-logo.png" alt="ViralTalk logo" className="relative h-24 w-auto drop-shadow-xl" />
+            <img src="/viraltalk-icon.png" alt="ViralTalk logo" className="relative h-24 w-auto drop-shadow-xl" />
           </div>
           <div className="space-y-2 max-w-md">
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-foreground">ViralTalk</h1>

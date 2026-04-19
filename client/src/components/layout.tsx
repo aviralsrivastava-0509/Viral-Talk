@@ -24,9 +24,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/90 backdrop-blur-md">
         <div className="container flex h-15 items-center justify-between px-4 sm:px-8 max-w-7xl mx-auto">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-80 transition-opacity">
-            <div className="bg-white rounded-xl shadow-sm p-0.5 flex-shrink-0">
-              <img src="/viraltalk-logo.png" alt="ViralTalk" className="h-7 w-auto" />
-            </div>
+            <img src="/viraltalk-icon.png" alt="ViralTalk" className="h-7 w-auto flex-shrink-0" />
             <span className="hidden sm:inline-block text-lg font-bold tracking-tight text-foreground">
               ViralTalk
             </span>

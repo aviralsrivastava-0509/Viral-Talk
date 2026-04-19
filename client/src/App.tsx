@@ -22,7 +22,7 @@ function Router() {
           <div className="relative">
             <div className="absolute inset-0 rounded-3xl bg-violet-400/20 blur-2xl scale-110" />
             <img
-              src="/viraltalk-logo.png"
+              src="/viraltalk-icon.png"
               alt="ViralTalk"
               className="relative h-20 w-auto animate-pulse drop-shadow-lg"
             />
