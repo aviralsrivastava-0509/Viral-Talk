@@ -51,7 +51,13 @@ export function CreatePostDialog({ groupId }: CreatePostDialogProps) {
   });
 
   const onSubmit = (data: z.infer<typeof insertPostSchema>) => {
-    mutate({ ...data, groupId }, {
+    const payload = {
+      ...data,
+      groupId,
+      content: data.content?.trim() || null,
+      mediaUrl: data.mediaUrl?.trim() || null,
+    };
+    mutate(payload, {
       onSuccess: () => {
         setOpen(false);
         form.reset({ type: "announcement", content: "", mediaUrl: "", groupId });

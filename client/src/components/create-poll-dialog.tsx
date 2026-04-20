@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { insertPollSchema } from "@shared/schema";
 import { useCreatePoll } from "@/hooks/use-polls";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,52 +16,65 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, ListChecks } from "lucide-react";
 
+const formSchema = z.object({
+  question: z.string().min(1, "Question is required"),
+});
+
 interface CreatePollDialogProps {
   groupId: number;
 }
 
 export function CreatePollDialog({ groupId }: CreatePollDialogProps) {
   const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState(["", ""]);
+  const [optionError, setOptionError] = useState("");
   const { mutate, isPending } = useCreatePoll(groupId);
-  
-  const form = useForm<z.infer<typeof insertPollSchema>>({
-    resolver: zodResolver(insertPollSchema),
-    defaultValues: {
-      question: "",
-      groupId,
-      options: ["", ""], // Start with 2 empty options
-    },
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { question: "" },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control as any,
-    name: "options",
-  });
+  const updateOption = (index: number, value: string) => {
+    setOptions(prev => prev.map((o, i) => (i === index ? value : o)));
+    setOptionError("");
+  };
 
-  const onSubmit = (data: z.infer<typeof insertPollSchema>) => {
-    // Filter empty options
-    const cleanedData = {
-      ...data,
-      options: data.options.filter(o => o.trim().length > 0)
-    };
-    
-    if (cleanedData.options.length < 2) {
-      form.setError("root", { message: "At least 2 options are required" });
+  const addOption = () => setOptions(prev => [...prev, ""]);
+
+  const removeOption = (index: number) => {
+    if (options.length <= 2) return;
+    setOptions(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const resetForm = () => {
+    form.reset({ question: "" });
+    setOptions(["", ""]);
+    setOptionError("");
+  };
+
+  const onSubmit = (data: z.infer<typeof formSchema>) => {
+    const validOptions = options.map(o => o.trim()).filter(o => o.length > 0);
+    if (validOptions.length < 2) {
+      setOptionError("Please fill in at least 2 options.");
       return;
     }
 
-    mutate({ ...cleanedData, groupId }, {
-      onSuccess: () => {
-        setOpen(false);
-        form.reset({ question: "", groupId, options: ["", ""] });
-      },
-    });
+    mutate(
+      { question: data.question, groupId, options: validOptions },
+      {
+        onSuccess: () => {
+          setOpen(false);
+          resetForm();
+        },
+      }
+    );
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) resetForm(); }}>
       <DialogTrigger asChild>
-        <Button variant="outline" className="w-full sm:w-auto gap-2">
+        <Button variant="outline" className="w-full sm:w-auto gap-2" data-testid="button-open-create-poll">
           <ListChecks className="w-4 h-4" />
           New Poll
         </Button>
@@ -74,9 +86,10 @@ export function CreatePollDialog({ groupId }: CreatePollDialogProps) {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
           <div className="space-y-2">
             <Label>Question</Label>
-            <Input 
-              placeholder="Where should we go for dinner?" 
-              {...form.register("question")} 
+            <Input
+              placeholder="Where should we go for dinner?"
+              data-testid="input-poll-question"
+              {...form.register("question")}
             />
             {form.formState.errors.question && (
               <p className="text-sm text-destructive">{form.formState.errors.question.message}</p>
@@ -85,40 +98,42 @@ export function CreatePollDialog({ groupId }: CreatePollDialogProps) {
 
           <div className="space-y-3">
             <Label>Options</Label>
-            {fields.map((field, index) => (
-              <div key={field.id} className="flex gap-2">
-                <Input 
+            {options.map((opt, index) => (
+              <div key={index} className="flex gap-2">
+                <Input
                   placeholder={`Option ${index + 1}`}
-                  {...form.register(`options.${index}` as any)} 
+                  value={opt}
+                  onChange={e => updateOption(index, e.target.value)}
+                  data-testid={`input-poll-option-${index}`}
                 />
-                {fields.length > 2 && (
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
+                {options.length > 2 && (
+                  <Button
+                    type="button"
+                    variant="ghost"
                     size="icon"
-                    onClick={() => remove(index)}
+                    onClick={() => removeOption(index)}
+                    data-testid={`button-remove-option-${index}`}
                   >
                     <Trash2 className="w-4 h-4 text-muted-foreground" />
                   </Button>
                 )}
               </div>
             ))}
-            <Button 
-              type="button" 
-              variant="outline" 
-              size="sm" 
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               className="w-full mt-2 border-dashed"
-              onClick={() => append("")}
+              onClick={addOption}
+              data-testid="button-add-poll-option"
             >
               <Plus className="w-4 h-4 mr-2" /> Add Option
             </Button>
-            {form.formState.errors.root && (
-              <p className="text-sm text-destructive">{form.formState.errors.root.message}</p>
-            )}
+            {optionError && <p className="text-sm text-destructive">{optionError}</p>}
           </div>
 
           <DialogFooter>
-            <Button type="submit" disabled={isPending}>
+            <Button type="submit" disabled={isPending} data-testid="button-submit-poll">
               {isPending ? "Creating..." : "Create Poll"}
             </Button>
           </DialogFooter>

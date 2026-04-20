@@ -149,38 +149,78 @@ export async function registerRoutes(
   });
 
   app.post(api.posts.create.path, isAuthenticated, async (req, res) => {
-    const input = api.posts.create.input.parse(req.body);
-    const post = await storage.createPost(req.session.userId!, Number(req.params.groupId), input);
-    res.status(201).json(post);
+    try {
+      const body = {
+        ...req.body,
+        groupId: Number(req.params.groupId),
+        mediaUrl: req.body.mediaUrl || null,
+        content: req.body.content || null,
+      };
+      const input = api.posts.create.input.parse(body);
+      const post = await storage.createPost(req.session.userId!, Number(req.params.groupId), input);
+      res.status(201).json(post);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
   });
 
   // === EVENTS ===
   app.get(api.events.list.path, isAuthenticated, async (req, res) => {
-    const events = await storage.getGroupEvents(Number(req.params.groupId));
-    res.json(events);
+    const evts = await storage.getGroupEvents(Number(req.params.groupId));
+    res.json(evts);
   });
 
   app.post(api.events.create.path, isAuthenticated, async (req, res) => {
-    const input = api.events.create.input.parse(req.body);
-    const event = await storage.createEvent(req.session.userId!, Number(req.params.groupId), input);
-    res.status(201).json(event);
+    try {
+      const body = {
+        ...req.body,
+        groupId: Number(req.params.groupId),
+        endTime: req.body.endTime || null,
+      };
+      const input = api.events.create.input.parse(body);
+      const event = await storage.createEvent(req.session.userId!, Number(req.params.groupId), input);
+      res.status(201).json(event);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
   });
 
   // === POLLS ===
   app.get(api.polls.list.path, isAuthenticated, async (req, res) => {
-    const polls = await storage.getGroupPolls(Number(req.params.groupId));
-    res.json(polls);
+    const pollList = await storage.getGroupPolls(Number(req.params.groupId));
+    res.json(pollList);
   });
 
   app.post(api.polls.create.path, isAuthenticated, async (req, res) => {
-    const input = api.polls.create.input.parse(req.body);
-    const poll = await storage.createPoll(req.session.userId!, Number(req.params.groupId), input);
-    res.status(201).json(poll);
+    try {
+      const body = {
+        ...req.body,
+        groupId: Number(req.params.groupId),
+        options: Array.isArray(req.body.options) ? req.body.options.filter((o: string) => o?.trim()) : [],
+      };
+      const input = api.polls.create.input.parse(body);
+      if (!input.options || input.options.length < 2) {
+        return res.status(400).json({ message: "At least 2 poll options are required" });
+      }
+      const poll = await storage.createPoll(req.session.userId!, Number(req.params.groupId), input);
+      res.status(201).json(poll);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      throw err;
+    }
   });
 
   app.post(api.polls.vote.path, isAuthenticated, async (req, res) => {
-    await storage.votePoll(req.session.userId!, req.body.optionId);
-    res.json({ success: true });
+    try {
+      const optionId = Number(req.body.optionId);
+      if (!optionId) return res.status(400).json({ message: "optionId is required" });
+      await storage.votePoll(req.session.userId!, optionId);
+      res.json({ success: true });
+    } catch (err) {
+      throw err;
+    }
   });
 
   // === MESSAGES (Group Chat) ===

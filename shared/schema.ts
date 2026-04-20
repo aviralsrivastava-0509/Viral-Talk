@@ -145,7 +145,12 @@ export const messagesRelations = relations(messages, ({ one }) => ({
 // === SCHEMAS ===
 export const insertGroupSchema = createInsertSchema(groups).omit({ id: true, createdAt: true, createdBy: true });
 export const insertPostSchema = createInsertSchema(posts).omit({ id: true, createdAt: true, userId: true, expiresAt: true });
-export const insertEventSchema = createInsertSchema(events).omit({ id: true, createdAt: true, createdBy: true });
+export const insertEventSchema = createInsertSchema(events)
+  .omit({ id: true, createdAt: true, createdBy: true })
+  .extend({
+    startTime: z.coerce.date(),
+    endTime: z.coerce.date().optional().nullable(),
+  });
 export const insertPollSchema = createInsertSchema(polls).omit({ id: true, createdAt: true, createdBy: true }).extend({
   options: z.array(z.string()),
 });
