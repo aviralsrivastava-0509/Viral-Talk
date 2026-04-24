@@ -150,8 +150,16 @@ export class DatabaseStorage implements IStorage {
       const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id));
       const optionsWithVotes = [];
       for (const opt of options) {
-        const votes = await db.select().from(pollVotes).where(eq(pollVotes.pollOptionId, opt.id));
-        optionsWithVotes.push({ ...opt, votes: votes.length });
+        const voters = await db
+          .select({ user: users })
+          .from(pollVotes)
+          .leftJoin(users, eq(pollVotes.userId, users.id))
+          .where(eq(pollVotes.pollOptionId, opt.id));
+        optionsWithVotes.push({
+          ...opt,
+          voteCount: voters.length,
+          voters: voters.map(v => v.user).filter(Boolean),
+        });
       }
       results.push({ ...poll, options: optionsWithVotes });
     }
