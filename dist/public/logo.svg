@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#c084fc"/>
+    </linearGradient>
+    <linearGradient id="vgrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,1)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.85)"/>
+    </linearGradient>
+  </defs>
+  <!-- Background rounded square -->
+  <rect width="64" height="64" rx="15" fill="url(#bg)"/>
+  <!-- Subtle inner highlight -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1.5"/>
+  <!-- Bold white V — rounded stroke, slightly raised center point -->
+  <path
+    d="M13 17 L32 45 L51 17"
+    stroke="url(#vgrad)"
+    stroke-width="6.5"
+    fill="none"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <!-- Speech-bubble tail dot beneath the V point -->
+  <circle cx="32" cy="52" r="3.2" fill="rgba(255,255,255,0.75)"/>
+</svg>
