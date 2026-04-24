@@ -100,6 +100,10 @@ export async function registerRoutes(
   });
 
   // Leave group (current user leaves themselves)
+  // Behavior:
+  // - Non-admin or admin with other admins present: simply leave
+  // - Sole admin with other members: promote oldest non-admin member, then leave
+  // - Sole admin and only member: disband (delete) the group
   app.delete("/api/groups/:groupId/leave", isAuthenticated, async (req, res) => {
     const groupId = Number(req.params.groupId);
     const userId = req.session.userId!;
@@ -107,19 +111,37 @@ export async function registerRoutes(
     const role = await storage.getMemberRole(userId, groupId);
     if (!role) return res.status(404).json({ message: "You are not a member of this group" });
 
-    // If the leaving user is an admin, ensure there's at least one other admin
     if (role === "admin") {
       const allMembers = await storage.getGroupMembers(groupId);
-      const otherAdmins = allMembers.filter(m => m.role === "admin" && m.userId !== userId);
+      const others = allMembers.filter(m => m.userId !== userId);
+
+      if (others.length === 0) {
+        // Last person — disband the entire group
+        await storage.deleteGroup(groupId);
+        return res.json({ ok: true, action: "disbanded" });
+      }
+
+      const otherAdmins = others.filter(m => m.role === "admin");
       if (otherAdmins.length === 0) {
-        return res.status(400).json({
-          message: "You're the only admin. Transfer admin to someone else before leaving.",
+        // Promote the longest-standing other member to admin
+        const sorted = [...others].sort((a, b) => {
+          const ta = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
+          const tb = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+          return ta - tb;
+        });
+        const newAdmin = sorted[0];
+        await storage.updateMemberRole(newAdmin.userId, groupId, "admin");
+        await storage.removeMember(userId, groupId);
+        return res.json({
+          ok: true,
+          action: "promoted",
+          newAdmin: { userId: newAdmin.userId, name: newAdmin.user?.firstName || newAdmin.user?.username || "A member" },
         });
       }
     }
 
     await storage.removeMember(userId, groupId);
-    res.json({ ok: true });
+    res.json({ ok: true, action: "left" });
   });
 
   app.delete("/api/groups/:groupId/members/:userId", isAuthenticated, async (req, res) => {

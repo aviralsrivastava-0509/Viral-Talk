@@ -22,9 +22,18 @@ export function useRemoveMember(groupId: number) {
   });
 }
 
+export type LeaveGroupResult = {
+  ok: boolean;
+  action: "left" | "promoted" | "disbanded";
+  newAdmin?: { userId: string; name: string };
+};
+
 export function useLeaveGroup(groupId: number) {
-  return useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/groups/${groupId}/leave`),
+  return useMutation<LeaveGroupResult>({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/groups/${groupId}/leave`);
+      return res.json();
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
     },

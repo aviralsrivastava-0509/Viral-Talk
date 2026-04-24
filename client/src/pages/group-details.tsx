@@ -81,8 +81,15 @@ export default function GroupDetails() {
 
   const handleLeaveGroup = () => {
     leaveGroup(undefined, {
-      onSuccess: () => {
+      onSuccess: (result) => {
         setLeaveDialogOpen(false);
+        if (result?.action === "disbanded") {
+          toast({ description: `Group "${group?.name}" has been disbanded.` });
+        } else if (result?.action === "promoted" && result.newAdmin) {
+          toast({ description: `${result.newAdmin.name} is now the new admin.` });
+        } else {
+          toast({ description: `You left "${group?.name}".` });
+        }
         window.location.href = "/";
       },
       onError: (err: any) => {
@@ -277,31 +284,16 @@ export default function GroupDetails() {
       </Dialog>
 
       {/* Leave Group Confirmation Dialog */}
-      <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Leave "{group.name}"?</DialogTitle>
-            <DialogDescription>
-              {isAdmin
-                ? "You're an admin. You can only leave if there's at least one other admin."
-                : "You'll lose access to this group's posts, chat, and events. You can rejoin with the invite code."}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="ghost" onClick={() => setLeaveDialogOpen(false)} disabled={leaving}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleLeaveGroup}
-              disabled={leaving}
-              data-testid="button-confirm-leave-group"
-            >
-              {leaving ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Leaving…</> : "Leave Group"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <LeaveGroupDialog
+        open={leaveDialogOpen}
+        onOpenChange={setLeaveDialogOpen}
+        groupName={group.name}
+        isAdmin={isAdmin}
+        members={members ?? []}
+        currentUserId={user?.id}
+        leaving={leaving}
+        onConfirm={handleLeaveGroup}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="feed" className="w-full">
@@ -895,5 +887,96 @@ function MembersSection({ groupId, group }: { groupId: number; group: any }) {
         })}
       </div>
     </div>
+  );
+}
+
+// ── Leave Group Dialog ───────────────────────────────────────────────────────
+
+interface LeaveGroupDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  groupName: string;
+  isAdmin: boolean;
+  members: any[];
+  currentUserId: string | undefined;
+  leaving: boolean;
+  onConfirm: () => void;
+}
+
+function LeaveGroupDialog({
+  open,
+  onOpenChange,
+  groupName,
+  isAdmin,
+  members,
+  currentUserId,
+  leaving,
+  onConfirm,
+}: LeaveGroupDialogProps) {
+  const others = members.filter(m => m.userId !== currentUserId);
+  const otherAdmins = others.filter(m => m.role === "admin");
+
+  // Determine the scenario
+  let scenario: "disband" | "promote" | "leave" = "leave";
+  let title = "";
+  let description = "";
+  let confirmLabel = "Leave Group";
+  let confirmTone: "destructive" | "default" = "destructive";
+
+  if (isAdmin && others.length === 0) {
+    scenario = "disband";
+    title = `Disband "${groupName}"?`;
+    description =
+      "You're the only person here. Leaving will permanently delete this group along with all its messages, posts, events, and polls. This cannot be undone.";
+    confirmLabel = "Disband Group";
+  } else if (isAdmin && otherAdmins.length === 0) {
+    scenario = "promote";
+    const sorted = [...others].sort((a, b) => {
+      const ta = a.joinedAt ? new Date(a.joinedAt).getTime() : 0;
+      const tb = b.joinedAt ? new Date(b.joinedAt).getTime() : 0;
+      return ta - tb;
+    });
+    const next = sorted[0];
+    const nextName =
+      next?.user?.firstName || next?.user?.username || "another member";
+    title = `Leave "${groupName}"?`;
+    description = `You're the only admin. ${nextName} will be promoted to admin so the group keeps running. You can rejoin later with the invite code.`;
+  } else {
+    title = `Leave "${groupName}"?`;
+    description =
+      "You'll lose access to this group's posts, chat, and events. You can rejoin with the invite code.";
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle data-testid="text-leave-dialog-title">{title}</DialogTitle>
+          <DialogDescription data-testid="text-leave-dialog-description">
+            {description}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={leaving}>
+            Cancel
+          </Button>
+          <Button
+            variant={confirmTone}
+            onClick={onConfirm}
+            disabled={leaving}
+            data-testid="button-confirm-leave-group"
+          >
+            {leaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                {scenario === "disband" ? "Disbanding…" : "Leaving…"}
+              </>
+            ) : (
+              confirmLabel
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

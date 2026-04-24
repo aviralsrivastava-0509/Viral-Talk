@@ -16,6 +16,8 @@ export interface IStorage {
   getGroupMembers(groupId: number): Promise<any[]>;
   getMemberRole(userId: string, groupId: number): Promise<string | null>;
   removeMember(userId: string, groupId: number): Promise<void>;
+  updateMemberRole(userId: string, groupId: number, role: string): Promise<void>;
+  deleteGroup(groupId: number): Promise<void>;
 
   // Posts
   getGroupPosts(groupId: number): Promise<any[]>;
@@ -105,6 +107,35 @@ export class DatabaseStorage implements IStorage {
 
   async removeMember(userId: string, groupId: number): Promise<void> {
     await db.delete(members).where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
+  }
+
+  async updateMemberRole(userId: string, groupId: number, role: string): Promise<void> {
+    await db
+      .update(members)
+      .set({ role })
+      .where(and(eq(members.userId, userId), eq(members.groupId, groupId)));
+  }
+
+  async deleteGroup(groupId: number): Promise<void> {
+    // Cascade delete: poll votes -> poll options -> polls -> events -> messages -> posts -> members -> group
+    const groupPolls = await db.select().from(polls).where(eq(polls.groupId, groupId));
+    const pollIds = groupPolls.map(p => p.id);
+
+    if (pollIds.length > 0) {
+      const opts = await db.select().from(pollOptions).where(inArray(pollOptions.pollId, pollIds));
+      const optIds = opts.map(o => o.id);
+      if (optIds.length > 0) {
+        await db.delete(pollVotes).where(inArray(pollVotes.pollOptionId, optIds));
+      }
+      await db.delete(pollOptions).where(inArray(pollOptions.pollId, pollIds));
+      await db.delete(polls).where(eq(polls.groupId, groupId));
+    }
+
+    await db.delete(events).where(eq(events.groupId, groupId));
+    await db.delete(messages).where(eq(messages.groupId, groupId));
+    await db.delete(posts).where(eq(posts.groupId, groupId));
+    await db.delete(members).where(eq(members.groupId, groupId));
+    await db.delete(groups).where(eq(groups.id, groupId));
   }
 
   async getGroupPosts(groupId: number): Promise<any[]> {
