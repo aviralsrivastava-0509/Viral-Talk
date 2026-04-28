@@ -22,6 +22,7 @@ export function setupAuth(app: Express) {
   });
 
   app.set("trust proxy", 1);
+  const isProduction = process.env.NODE_ENV === "production";
   app.use(
     session({
       secret: process.env.SESSION_SECRET!,
@@ -30,6 +31,8 @@ export function setupAuth(app: Express) {
       saveUninitialized: false,
       cookie: {
         httpOnly: true,
+        secure: isProduction,
+        sameSite: "lax",
         maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
       },
     })
