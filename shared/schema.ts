@@ -1,9 +1,27 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, customType } from "drizzle-orm/pg-core";
+import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 export * from "./models/auth";
 import { users } from "./models/auth";
+
+// Custom bytea column for storing binary file content in Postgres
+const bytea = customType<{ data: Buffer; default: false }>({
+  dataType() {
+    return "bytea";
+  },
+});
+
+// === MEDIA (binary file storage in DB so uploads survive autoscale redeploys) ===
+export const media = pgTable("media", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull(),
+  mimeType: text("mime_type").notNull(),
+  mediaType: text("media_type").notNull(), // 'image' | 'video'
+  size: integer("size").notNull(),
+  data: bytea("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
 
 // === GROUPS ===
 export const groups = pgTable("groups", {

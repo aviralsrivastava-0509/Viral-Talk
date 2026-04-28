@@ -8,18 +8,10 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Set up multer storage for uploaded media
-const uploadsDir = path.join(process.cwd(), "uploads");
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-
+// Uploads are stored in the database (see media table) so they survive autoscale
+// redeploys. Files are buffered in memory then written to Postgres as bytea.
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadsDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname).toLowerCase();
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50 MB
   fileFilter: (_req, file, cb) => {
     const allowed = /image\/(jpeg|png|gif|webp)|video\/(mp4|webm|quicktime|mov)/;
@@ -28,25 +20,50 @@ const upload = multer({
   },
 });
 
+// Legacy uploads dir — only used to serve files written by older builds in dev.
+// New uploads go to the database.
+const legacyUploadsDir = path.join(process.cwd(), "uploads");
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Serve uploaded files as static
+  // Serve any legacy disk-uploaded files (only useful in dev)
   const express = (await import("express")).default;
-  app.use("/uploads", express.static(uploadsDir));
+  if (fs.existsSync(legacyUploadsDir)) {
+    app.use("/uploads", express.static(legacyUploadsDir));
+  }
 
   // Setup Auth
   await setupAuth(app);
   registerAuthRoutes(app);
 
+  // === MEDIA SERVING (DB-backed, persists across deployments) ===
+  app.get("/api/media/:id", async (req, res) => {
+    try {
+      const row = await storage.getMedia(req.params.id);
+      if (!row) return res.status(404).json({ message: "Media not found" });
+      res.setHeader("Content-Type", row.mimeType);
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      res.send(row.data);
+    } catch (err) {
+      console.error("Media fetch error:", err);
+      res.status(500).json({ message: "Failed to load media" });
+    }
+  });
+
   // === FILE UPLOAD ===
-  app.post("/api/upload", isAuthenticated, upload.single("file"), (req, res) => {
-    if (!(req as any).file) return res.status(400).json({ message: "No file uploaded" });
-    const file = (req as any).file;
-    const mediaType = file.mimetype.startsWith("video/") ? "video" : "image";
-    const url = `/uploads/${file.filename}`;
-    res.json({ url, mediaType });
+  app.post("/api/upload", isAuthenticated, upload.single("file"), async (req, res) => {
+    try {
+      const file = (req as any).file;
+      if (!file) return res.status(400).json({ message: "No file uploaded" });
+      const mediaType = file.mimetype.startsWith("video/") ? "video" : "image";
+      const row = await storage.createMedia(req.session.userId!, file.mimetype, mediaType, file.buffer);
+      res.json({ url: `/api/media/${row.id}`, mediaType: row.mediaType });
+    } catch (err) {
+      console.error("Upload error:", err);
+      res.status(500).json({ message: "Upload failed" });
+    }
   });
 
   // === GROUPS ===

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { groups, members, posts, events, polls, pollOptions, pollVotes, messages, users } from "@shared/schema";
+import { groups, members, posts, events, polls, pollOptions, pollVotes, messages, users, media } from "@shared/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
@@ -40,6 +40,10 @@ export interface IStorage {
 
   // Group updates
   updateGroupPhoto(groupId: number, adminId: string, photoUrl: string): Promise<any>;
+
+  // Media (binary uploads stored in DB so they persist on autoscale deployments)
+  createMedia(userId: string, mimeType: string, mediaType: string, data: Buffer): Promise<{ id: string; mediaType: string }>;
+  getMedia(id: string): Promise<{ mimeType: string; data: Buffer } | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -174,10 +178,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getGroupPolls(groupId: number): Promise<any[]> {
-    const groupPolls = await db.select().from(polls).where(eq(polls.groupId, groupId)).orderBy(desc(polls.createdAt));
+    const groupPolls = await db
+      .select({ poll: polls, creator: users })
+      .from(polls)
+      .leftJoin(users, eq(polls.createdBy, users.id))
+      .where(eq(polls.groupId, groupId))
+      .orderBy(desc(polls.createdAt));
 
     const results = [];
-    for (const poll of groupPolls) {
+    for (const { poll, creator } of groupPolls) {
       const options = await db.select().from(pollOptions).where(eq(pollOptions.pollId, poll.id));
       const optionsWithVotes = [];
       for (const opt of options) {
@@ -192,7 +201,7 @@ export class DatabaseStorage implements IStorage {
           voters: voters.map(v => v.user).filter(Boolean),
         });
       }
-      results.push({ ...poll, options: optionsWithVotes });
+      results.push({ ...poll, creator: creator || null, options: optionsWithVotes });
     }
     return results;
   }
@@ -282,6 +291,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(groups.id, groupId))
       .returning();
     return updated;
+  }
+
+  async createMedia(userId: string, mimeType: string, mediaType: string, data: Buffer) {
+    const [row] = await db.insert(media).values({
+      userId,
+      mimeType,
+      mediaType,
+      size: data.length,
+      data,
+    }).returning({ id: media.id, mediaType: media.mediaType });
+    return row;
+  }
+
+  async getMedia(id: string) {
+    const [row] = await db.select({ mimeType: media.mimeType, data: media.data }).from(media).where(eq(media.id, id));
+    return row;
   }
 }
 

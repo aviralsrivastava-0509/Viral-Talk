@@ -15,7 +15,7 @@ type PollOptionWithVoters = PollOption & {
 };
 
 interface PollCardProps {
-  poll: Poll & { options: PollOptionWithVoters[] };
+  poll: Poll & { options: PollOptionWithVoters[]; creator?: User | null };
   groupId: number;
 }
 
@@ -67,6 +67,27 @@ export function PollCard({ poll, groupId }: PollCardProps) {
           <CardTitle className="text-lg font-medium leading-tight" data-testid={`text-poll-question-${poll.id}`}>
             {poll.question}
           </CardTitle>
+          {poll.creator && (
+            <div
+              className="flex items-center gap-1.5 mt-1.5 text-[11px] text-muted-foreground"
+              data-testid={`text-poll-creator-${poll.id}`}
+            >
+              <Avatar className="w-4 h-4">
+                <AvatarImage src={poll.creator.profileImageUrl || undefined} />
+                <AvatarFallback className="text-[8px]">
+                  {(poll.creator.firstName || poll.creator.username || "?").slice(0, 2).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <span>
+                Created by{" "}
+                <span className="font-medium text-foreground/80">
+                  {poll.creator.id === currentUser?.id
+                    ? "you"
+                    : poll.creator.firstName || poll.creator.username}
+                </span>
+              </span>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="space-y-4">
           {poll.options.map((option) => {
